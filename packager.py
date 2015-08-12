@@ -245,18 +245,38 @@ try:
   writeall("%s/changelog" % opts.dirname, changelog)
   # END update changelog
 
+
+  for filename in [
+    "%s.preinst" % opts.config["%PROJECT_NAME%"], 
+    "%s.postinst" % opts.config["%PROJECT_NAME%"], 
+    "%s.prerm" % opts.config["%PROJECT_NAME%"], 
+    "%s.postrm" % opts.config["%PROJECT_NAME%"]
+  ]:
+    try:
+      copy_and_replace_dict_file("%s/%s" % (opts.packagetemp, filename),
+                                 opts.config,
+                                 "%s/%s" % (opts.dirname, filename))
+    except IOError, e:
+      if e.errno != 2:
+        raise e
+
+
   for filename in [
     "%s.install" % opts.config["%PROJECT_NAME%"], 
-    "%s.postinst" % opts.config["%PROJECT_NAME%"], 
     "rules", 
-    "control"
+    "control",
+    "copyright"
   ]:
     copy_and_replace_dict_file("%s/%s" % (opts.packagetemp, filename),
                                opts.config,
                                "%s/%s" % (opts.dirname, filename))
 
-  for filename in ["copyright", "compat"]:
+
+  for filename in [
+    "compat"
+  ]:
     shutil.copy("%s/%s" % (opts.packagetemp, filename), "%s/%s" % (opts.dirname, filename))
+
 
   if opts.build_package:
     status = os.system("dpkg-buildpackage -b -tc -us -uc -r")

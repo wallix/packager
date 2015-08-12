@@ -4,3 +4,6 @@ BUILD_DEPENDS=debhelper (>=7), dpkg-dev, python
 DEPENDS=python
 PROJECT_NAME=packager
 MAINTAINER=WAB Dev Team <wab@wallix.com>
+VCS_GIT=https://github.com/wallix/packager.git
+VCS_BROWSER=https://github.com/wallix/packager
+HOMEPAGE=https://github.com/wallix/packager
