@@ -1,0 +1,6 @@
+PREFIX=/usr/local/bin/
+ARCH=any
+BUILD_DEPENDS=debhelper (>=7), dpkg-dev, python
+DEPENDS=python
+PROJECT_NAME=packager
+MAINTAINER=WAB Dev Team <wab@wallix.com>

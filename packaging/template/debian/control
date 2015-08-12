@@ -1,0 +1,18 @@
+Source: %PROJECT_NAME%
+Section: development
+# Priority: extra
+Priority: optional
+Maintainer: %MAINTAINER%
+Build-Depends: %BUILD_DEPENDS%
+Standards-Version: %VERSION%
+Vcs-Git: https://github.com/wallix/packager.git
+Vcs-browser: https://github.com/wallix/packager
+Homepage: https://github.com/wallix/packager
+
+Package: %PROJECT_NAME%
+Architecture: %ARCH%
+Section: development
+Homepage: https://github.com/wallix/packager
+Depends: %DEPENDS%
+Description: A simple package generator
+    www: https://github.com/wallix/packager
