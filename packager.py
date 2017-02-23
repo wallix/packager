@@ -14,7 +14,7 @@ def usage():
 
 try:
   options, args = getopt.getopt(sys.argv[1:], "h",
-                                ["help", 
+                                ["help",
                                  "version=",
                                  "project-name=",
                                  "build=",
@@ -43,7 +43,7 @@ class opts(object):
   entry_changelog = True
   urgency = "low"
   authors = None
-  
+
   dirname = "debian"
   utc = "0200"
 
@@ -52,7 +52,7 @@ class opts(object):
   config["%TARGET_CHANGELOG_DISTRIBUTION_NAME%"] = ''
   config["%ARCH%"] = platform.machine()
   config["%DIST_NAME%"], config["%DIST_VERSION%"], config["%DIST_ID%"] = platform.linux_distribution()
-  
+
   force_config = {}
 
 for o,a in options:
@@ -148,11 +148,11 @@ def copy_and_replace_dict_file(filename, dico, target):
   writeall(target, out)
 
 
-def get_changement_log(project_name, version, pkg_distribution, authors, urgency, utc):
+def get_changelog_entry(project_name, version, authors, urgency, utc):
   if not 'EDITOR' in os.environ:
     os.environ['EDITOR'] = 'nano'
 
-  changelog = ''  
+  changelog = ''
 
   tmp_changelog = "/tmp/%s-changelog.tmp" % version
   if os.system("%s %s" % (os.environ['EDITOR'], tmp_changelog)):
@@ -166,14 +166,13 @@ def get_changement_log(project_name, version, pkg_distribution, authors, urgency
     os.remove(tmp_changelog)
   except:
     pass
-  
+
   if not changelog:
     return ""
 
-  return "%s (%s) %s; urgency=%s\n\n%s\n\n -- %s  %s\n\n" % (
+  return "%s (%s%%TARGET_NAME%%) %%PKG_DISTRIBUTION%%; urgency=%s\n\n%s\n\n -- %s  %s\n\n" % (
     project_name,
     version,
-    pkg_distribution,
     urgency,
     changelog,
     authors,
@@ -203,7 +202,7 @@ try:
       parse_target_param("%s" % opts.force_target)
     except IOError:
       raise Exception('Target param file not found (%s)' % opts.force_target)
-    
+
   if "%ARCH%" in opts.force_config:
     opts.force_config["ARCH"] = archi_to_control_archi(opts.force_config["ARCH"])
 
@@ -216,23 +215,28 @@ try:
     else:
       opts.config["%PKG_DISTRIBUTION%"] = opts.config["%DIST_ID%"];
 
+  if not "%TARGET_NAME%" in opts.config:
+    if opts.config["%DIST_NAME%"].lower() == 'ubuntu':
+      opts.config["%TARGET_NAME%"] = "+" + opts.config["%DIST_ID%"];
+    else:
+      opts.config["%TARGET_NAME%"] = '';
+
   if not "%PROJECT_NAME%" in opts.config:
     opts.config["%PROJECT_NAME%"] = opts.project_name
-    
+
   if not opts.config["%PROJECT_NAME%"]:
     raise Exception('Project whitout name')
-    
+
   if not opts.authors:
     opts.authors = opts.config["%MAINTAINER%"] if "%MAINTAINER%" in opts.config else "Maintainer"
 
   # BEGIN update changelog
   changelog = ''
   if opts.entry_changelog:
-    changelog = get_changement_log(
-      opts.config["%PROJECT_NAME%"], 
-      opts.config["%VERSION%"], 
-      opts.config["%PKG_DISTRIBUTION%"], 
-      opts.authors, 
+    changelog = get_changelog_entry(
+      opts.config["%PROJECT_NAME%"],
+      opts.config["%VERSION%"],
+      opts.authors,
       opts.urgency,
       opts.utc
     )
@@ -241,15 +245,15 @@ try:
 
   if opts.entry_changelog:
     writeall("%s/changelog" % opts.packagetemp, changelog)
-    
+
   writeall("%s/changelog" % opts.dirname, changelog)
   # END update changelog
 
 
   for filename in [
-    "%s.preinst" % opts.config["%PROJECT_NAME%"], 
-    "%s.postinst" % opts.config["%PROJECT_NAME%"], 
-    "%s.prerm" % opts.config["%PROJECT_NAME%"], 
+    "%s.preinst" % opts.config["%PROJECT_NAME%"],
+    "%s.postinst" % opts.config["%PROJECT_NAME%"],
+    "%s.prerm" % opts.config["%PROJECT_NAME%"],
     "%s.postrm" % opts.config["%PROJECT_NAME%"]
   ]:
     try:
@@ -262,8 +266,9 @@ try:
 
 
   for filename in [
-    "%s.install" % opts.config["%PROJECT_NAME%"], 
-    "rules", 
+    "%s.install" % opts.config["%PROJECT_NAME%"],
+    "changelog",
+    "rules",
     "control",
     "copyright"
   ]:
