@@ -67,7 +67,7 @@ for o,a in options:
   elif o == "--distribution-name":    opts.force_config["%DIST_NAME%"] = a
   elif o == "--distribution-version": opts.force_config["%DIST_VERSION%"] = a
   elif o == "--distribution-id":      opts.force_config["%DIST_ID%"] = a
-  elif o == "--arch":        	        opts.force_config["%ARCH%"] = a
+  elif o == "--arch":        	      opts.force_config["%ARCH%"] = a
   elif o == "--package-distribution": opts.force_config["%PKG_DISTRIBUTION%"] = a
   elif o == "--package-template":     opts.packagetemp = a
   elif o == "--force-target":         opts.force_target = a
