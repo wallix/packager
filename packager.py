@@ -168,7 +168,7 @@ def get_changelog_entry(project_name, version, authors, urgency, utc):
     pass
 
   if not changelog:
-    return ""
+    raise Exception("Change log is empty")
 
   return "%s (%s%%TARGET_NAME%%) %%PKG_DISTRIBUTION%%; urgency=%s\n\n%s\n\n -- %s  %s\n\n" % (
     project_name,
