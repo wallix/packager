@@ -16,7 +16,7 @@ def usage():
           "[--distribution-name name] [--distribution-version version] "
           "[--distribution-id id] [--arch arch] [--package-distribution name] "
           "[--package-template dirname] [--force-target target] "
-          "[--use-pybuild] "
+          "[--use-pybuild] [--no-clean]"
           "[--urgency urgency] [--authors authors] [--utc utc]" % sys.argv[0])
 
 
@@ -29,6 +29,7 @@ try:
                                    "build-package",
                                    "no-entry-changelog",
                                    "use-pybuild",
+                                   "no-clean",
                                    "distribution-name=",
                                    "distribution-version=",
                                    "distribution-id=",
@@ -51,6 +52,7 @@ class opts(object):
 
     build_package = False
     entry_changelog = True
+    common_changelog = "packaging/template/common_changelog"
     urgency = "low"
     authors = None
 
@@ -58,6 +60,7 @@ class opts(object):
     utc = "0200"
 
     use_pybuild = False
+    clean = True
 
     config = {}
     config["%PREFIX%"] = 'usr/local'
@@ -103,6 +106,8 @@ for o, a in options:
         opts.authors = a
     elif o == "--utc":
         opts.utc = a
+    elif o == "--no-clean":
+        opts.clean = False
     elif o == "--use-pybuild":
         # force pybuild templates and targets
         opts.use_pybuild = True
@@ -121,13 +126,14 @@ if not opts.force_target:
     else:
         opts.force_target += opts.config["%DIST_NAME%"].lower()
 
-# remove existing deban directory BEGIN
 
-try:
-    shutil.rmtree(opts.dirname)
-except:
-    pass
-# remove existing deban directory END
+# remove existing build directory BEGIN
+def remove_build_dir():
+    try:
+        shutil.rmtree(opts.build_dirname)
+    except:
+        pass
+# remove existing build directory END
 
 
 # IO Files functions BEGIN
@@ -253,14 +259,12 @@ PYVERSION_MAPPING = {
 }
 
 
-def generate_service_files(filename, pybuilds):
-    #
-    dest_filenames = [(filename, opts.config)]
+def pybuild_parameters():
+    pybuilds = opts.config.get("%PYBUILD%", '').split(',')
+    pybuilds = [ver for ver in pybuilds if ver in PYBUILD_MAPPING]
     if not pybuilds:
-        return dest_filenames
-
-    # create config 2 sets of parameters for each version of python
-    # as PYTHON_VERSION_NUM will be different
+        return {}
+    # create config param for each version of python
     configs_params = {
         py_ver: dict(opts.config) for py_ver in pybuilds
     }
@@ -268,27 +272,27 @@ def generate_service_files(filename, pybuilds):
         configs_params[py_ver]["%PYTHON_VERSION_NUM%"] = (
             opts.config.get(PYVERSION_MAPPING[py_ver])
         )
-    if (filename.endswith(".service")
-        and pybuilds):
-        # for <project_name>.service file, create
-        # python-<project_name>.<project_name>.service
-        # and python3-<project_name>.<project_name>.service
+    return configs_params
+
+
+def generate_service_files(filename, pybuilds_params):
+    dest_filenames = [(filename, opts.config)]
+    if not pybuilds_params:
+        return dest_filenames
+
+    if filename.endswith(".service"):
         dest_filenames = [
             ("%s-%s.%s" % (PYBUILD_MAPPING[py_ver],
                            opts.config["%PROJECT_NAME%"],
                            filename),
-             configs_params[py_ver])
-            for py_ver in pybuilds
+             pybuilds_params[py_ver])
+            for py_ver in pybuilds_params
         ]
-    elif (filename.startswith("%s." % opts.config["%PROJECT_NAME%"])
-          and pybuilds):
-        # for <project_name>.<extension> file, create
-        # python-<project_name>.<extension>
-        # and python3-<project_name>.<extension>
+    elif filename.startswith("%s." % opts.config["%PROJECT_NAME%"]):
         dest_filenames = [
             ("%s-%s" % (PYBUILD_MAPPING[py_ver], filename),
-             configs_params[py_ver])
-            for py_ver in pybuilds
+             pybuilds_params[py_ver])
+            for py_ver in pybuilds_params
         ]
     return dest_filenames
 
@@ -300,16 +304,10 @@ def temp_filename(filename):
     return rgx_tempfile.search(filename) is not None
 
 
-IGNORED_TEMPLATE = {'changelog'}
-
-
-def exclude_template(filename):
-    return (filename in IGNORED_TEMPLATE) or temp_filename(filename)
-
-
 status = 0
 
 try:
+    remove_build_dir()
     # Set debian (packaging data) directory with distro specific
     # packaging files BEGIN
     # Create temporary directory
@@ -355,7 +353,8 @@ try:
 
     # BEGIN update changelog
     changelog = ''
-    if opts.entry_changelog:
+    add_changelog = None
+    if opts.entry_changelog and os.path.isfile(opts.common_changelog):
         changelog = get_changelog_entry(
             opts.config["%PROJECT_NAME%"],
             opts.config["%VERSION%"],
@@ -363,33 +362,53 @@ try:
             opts.urgency,
             opts.utc
         )
-
-    changelog += readall("%s/changelog" % opts.packagetemp)
-
-    if opts.entry_changelog:
+        changelog += readall(opts.common_changelog)
+        writeall(opts.common_changelog, changelog)
+        common_changelog_path = os.path.dirname(opts.common_changelog)
+        common_changelog_file = os.path.basename(opts.common_changelog)
+        add_changelog = (common_changelog_path, common_changelog_file)
+    elif opts.entry_changelog:
+        changelog = get_changelog_entry(
+            opts.config["%PROJECT_NAME%"],
+            opts.config["%VERSION%"],
+            opts.authors,
+            opts.urgency,
+            opts.utc
+        )
+        changelog += readall("%s/changelog" % opts.packagetemp)
         writeall("%s/changelog" % opts.packagetemp, changelog)
 
-    writeall("%s/changelog" % opts.dirname, changelog)
     # END update changelog
+    excluded_files = set()
+    if add_changelog is not None:
+        excluded_files.add('changelog')
 
-    fileslist = [fn for fn in os.listdir(opts.packagetemp)
-                 if not exclude_template(fn)]
+    fileslist = [
+        (opts.packagetemp, fn)
+        for fn in os.listdir(opts.packagetemp)
+        if (not temp_filename(fn) and fn not in excluded_files)
+    ]
+    if add_changelog is not None:
+        fileslist.append(add_changelog)
 
-    pybuilds = opts.config.get("%PYBUILD%", '').split(',')
-    pybuilds = [ver for ver in pybuilds if ver in PYBUILD_MAPPING]
-    for filename in fileslist:
-        dest_filenames = generate_service_files(filename, pybuilds)
+    pybuilds_params = pybuild_parameters()
+    for (path, filename) in fileslist:
+        dest_filenames = generate_service_files(filename, pybuilds_params)
         for dest_filename, config_param in dest_filenames:
             copy_and_replace_dict_file(
-                "%s/%s" % (opts.packagetemp, filename),
+                "%s/%s" % (path, filename),
                 config_param or opts.config,
-                "%s/%s" % (opts.dirname, dest_filename)
+                "%s/%s" % (opts.build_dirname, dest_filename)
             )
     if opts.build_package:
         status = os.system("dpkg-buildpackage -b -tc -us -uc -r")
     if status:
         raise Exception("dpkg-buildpackage error.")
+    if opts.clean:
+        remove_build_dir()
     exit(0)
 except Exception as e:
     print("Build failed: %s" % e)
+    if opts.clean:
+        remove_build_dir()
     exit(status % 255 if status else -1)
