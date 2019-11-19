@@ -16,7 +16,7 @@ def usage():
           "[--distribution-name name] [--distribution-version version] "
           "[--distribution-id id] [--arch arch] [--package-distribution name] "
           "[--package-template dirname] [--force-target target] "
-          "[--use-pybuild] [--no-clean]"
+          "[--use-pybuild] [--no-clean] [--use-common-changelog]"
           "[--urgency urgency] [--authors authors] [--utc utc]" % sys.argv[0])
 
 
@@ -29,6 +29,7 @@ try:
                                    "build-package",
                                    "no-entry-changelog",
                                    "use-pybuild",
+                                   "use-common-changelog",
                                    "no-clean",
                                    "distribution-name=",
                                    "distribution-version=",
@@ -52,7 +53,7 @@ class opts(object):
 
     build_package = False
     entry_changelog = True
-    common_changelog = "packaging/template/common_changelog"
+    use_common_changelog = False
     common_changelog_path = "packaging/template/"
     common_changelog_file = "common_changelog"
     urgency = "low"
@@ -110,6 +111,8 @@ for o, a in options:
         opts.utc = a
     elif o == "--no-clean":
         opts.clean = False
+    elif o == "--use-common-changelog":
+        opts.use_common_changelog = True
     elif o == "--use-pybuild":
         # force pybuild templates and targets
         opts.use_pybuild = True
@@ -359,7 +362,7 @@ try:
     changelog = ''
     common_changelog = os.path.join(opts.common_changelog_path,
                                     opts.common_changelog_file)
-    if opts.entry_changelog and os.path.isfile(common_changelog):
+    if opts.entry_changelog and opts.use_common_changelog:
         changelog = get_changelog_entry(
             opts.config["%PROJECT_NAME%"],
             opts.config["%VERSION%"],
@@ -381,7 +384,7 @@ try:
         writeall("%s/changelog" % opts.packagetemp, changelog)
 
     add_changelog = None
-    if os.path.isfile(common_changelog):
+    if opts.use_common_changelog and os.path.isfile(common_changelog):
         add_changelog = (opts.common_changelog_path,
                          opts.common_changelog_file)
 
