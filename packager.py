@@ -353,7 +353,6 @@ try:
 
     # BEGIN update changelog
     changelog = ''
-    add_changelog = None
     if opts.entry_changelog and os.path.isfile(opts.common_changelog):
         changelog = get_changelog_entry(
             opts.config["%PROJECT_NAME%"],
@@ -377,6 +376,12 @@ try:
         )
         changelog += readall("%s/changelog" % opts.packagetemp)
         writeall("%s/changelog" % opts.packagetemp, changelog)
+
+    add_changelog = None
+    if os.path.isfile(opts.common_changelog):
+        common_changelog_path = os.path.dirname(opts.common_changelog)
+        common_changelog_file = os.path.basename(opts.common_changelog)
+        add_changelog = (common_changelog_path, common_changelog_file)
 
     # END update changelog
     excluded_files = set()
