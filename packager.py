@@ -130,7 +130,7 @@ if not opts.force_target:
 # remove existing build directory BEGIN
 def remove_build_dir():
     try:
-        shutil.rmtree(opts.build_dirname)
+        shutil.rmtree(opts.dirname)
     except:
         pass
 # remove existing build directory END
@@ -398,7 +398,7 @@ try:
             copy_and_replace_dict_file(
                 "%s/%s" % (path, filename),
                 config_param or opts.config,
-                "%s/%s" % (opts.build_dirname, dest_filename)
+                "%s/%s" % (opts.dirname, dest_filename)
             )
     if opts.build_package:
         status = os.system("dpkg-buildpackage -b -tc -us -uc -r")
