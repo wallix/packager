@@ -53,6 +53,8 @@ class opts(object):
     build_package = False
     entry_changelog = True
     common_changelog = "packaging/template/common_changelog"
+    common_changelog_path = "packaging/template/"
+    common_changelog_file = "common_changelog"
     urgency = "low"
     authors = None
 
@@ -276,6 +278,8 @@ def pybuild_parameters():
 
 
 def generate_service_files(filename, pybuilds_params):
+    if filename == opts.common_changelog_file:
+        filename = "changelog"
     dest_filenames = [(filename, opts.config)]
     if not pybuilds_params:
         return dest_filenames
@@ -353,7 +357,9 @@ try:
 
     # BEGIN update changelog
     changelog = ''
-    if opts.entry_changelog and os.path.isfile(opts.common_changelog):
+    common_changelog = os.path.join(opts.common_changelog_path,
+                                    opts.common_changelog_file)
+    if opts.entry_changelog and os.path.isfile(common_changelog):
         changelog = get_changelog_entry(
             opts.config["%PROJECT_NAME%"],
             opts.config["%VERSION%"],
@@ -361,11 +367,8 @@ try:
             opts.urgency,
             opts.utc
         )
-        changelog += readall(opts.common_changelog)
-        writeall(opts.common_changelog, changelog)
-        common_changelog_path = os.path.dirname(opts.common_changelog)
-        common_changelog_file = os.path.basename(opts.common_changelog)
-        add_changelog = (common_changelog_path, common_changelog_file)
+        changelog += readall(common_changelog)
+        writeall(common_changelog, changelog)
     elif opts.entry_changelog:
         changelog = get_changelog_entry(
             opts.config["%PROJECT_NAME%"],
@@ -378,10 +381,9 @@ try:
         writeall("%s/changelog" % opts.packagetemp, changelog)
 
     add_changelog = None
-    if os.path.isfile(opts.common_changelog):
-        common_changelog_path = os.path.dirname(opts.common_changelog)
-        common_changelog_file = os.path.basename(opts.common_changelog)
-        add_changelog = (common_changelog_path, common_changelog_file)
+    if os.path.isfile(common_changelog):
+        add_changelog = (opts.common_changelog_path,
+                         opts.common_changelog_file)
 
     # END update changelog
     excluded_files = set()
