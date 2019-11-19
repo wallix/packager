@@ -16,6 +16,7 @@ def usage():
           "[--distribution-name name] [--distribution-version version] "
           "[--distribution-id id] [--arch arch] [--package-distribution name] "
           "[--package-template dirname] [--force-target target] "
+          "[--use-pybuild] "
           "[--urgency urgency] [--authors authors] [--utc utc]" % sys.argv[0])
 
 
@@ -27,6 +28,7 @@ try:
                                    "build=",
                                    "build-package",
                                    "no-entry-changelog",
+                                   "use-pybuild",
                                    "distribution-name=",
                                    "distribution-version=",
                                    "distribution-id=",
@@ -54,6 +56,8 @@ class opts(object):
 
     dirname = "debian"
     utc = "0200"
+
+    use_pybuild = False
 
     config = {}
     config["%PREFIX%"] = 'usr/local'
@@ -89,9 +93,9 @@ for o, a in options:
         opts.force_config["%ARCH%"] = a
     elif o == "--package-distribution":
         opts.force_config["%PKG_DISTRIBUTION%"] = a
-    elif o == "--package-template":
+    elif o == "--package-template" and not opts.use_pybuild:
         opts.packagetemp = a
-    elif o == "--force-target":
+    elif o == "--force-target" and not opts.use_pybuild:
         opts.force_target = a
     elif o == "--urgency":
         opts.urgency = a
@@ -99,7 +103,11 @@ for o, a in options:
         opts.authors = a
     elif o == "--utc":
         opts.utc = a
-
+    elif o == "--use-pybuild":
+        # force pybuild templates and targets
+        opts.use_pybuild = True
+        opts.packagetemp = "packaging/template/pybuild/"
+        opts.force_target = "packaging/targets/pybuild/"
 
 if "%VERSION%" not in opts.force_config:
     print("--version is missing")
@@ -230,6 +238,75 @@ def archi_to_control_archi(architecture):
     return architecture
 
 
+PYTHON_VERSION_2 = '2'
+PYTHON_VERSION_3 = '3'
+
+PYBUILD_MAPPING = {
+    PYTHON_VERSION_2: 'python',
+    PYTHON_VERSION_3: 'python3',
+}
+
+
+PYVERSION_MAPPING = {
+    PYTHON_VERSION_2: '%PYTHON_VERSION_2%',
+    PYTHON_VERSION_3: '%PYTHON_VERSION_3%',
+}
+
+
+def generate_service_files(filename, pybuilds):
+    #
+    dest_filenames = [(filename, opts.config)]
+    if not pybuilds:
+        return dest_filenames
+
+    # create config 2 sets of parameters for each version of python
+    # as PYTHON_VERSION_NUM will be different
+    configs_params = {
+        py_ver: dict(opts.config) for py_ver in pybuilds
+    }
+    for py_ver in configs_params:
+        configs_params[py_ver]["%PYTHON_VERSION_NUM%"] = (
+            opts.config.get(PYVERSION_MAPPING[py_ver])
+        )
+    if (filename.endswith(".service")
+        and pybuilds):
+        # for <project_name>.service file, create
+        # python-<project_name>.<project_name>.service
+        # and python3-<project_name>.<project_name>.service
+        dest_filenames = [
+            ("%s-%s.%s" % (PYBUILD_MAPPING[py_ver],
+                           opts.config["%PROJECT_NAME%"],
+                           filename),
+             configs_params[py_ver])
+            for py_ver in pybuilds
+        ]
+    elif (filename.startswith("%s." % opts.config["%PROJECT_NAME%"])
+          and pybuilds):
+        # for <project_name>.<extension> file, create
+        # python-<project_name>.<extension>
+        # and python3-<project_name>.<extension>
+        dest_filenames = [
+            ("%s-%s" % (PYBUILD_MAPPING[py_ver], filename),
+             configs_params[py_ver])
+            for py_ver in pybuilds
+        ]
+    return dest_filenames
+
+
+rgx_tempfile = re.compile("^#.*#$|~$")
+
+
+def temp_filename(filename):
+    return rgx_tempfile.search(filename) is not None
+
+
+IGNORED_TEMPLATE = {'changelog'}
+
+
+def exclude_template(filename):
+    return (filename in IGNORED_TEMPLATE) or temp_filename(filename)
+
+
 status = 0
 
 try:
@@ -295,37 +372,19 @@ try:
     writeall("%s/changelog" % opts.dirname, changelog)
     # END update changelog
 
-    for filename in [
-            "%s.preinst" % opts.config["%PROJECT_NAME%"],
-            "%s.postinst" % opts.config["%PROJECT_NAME%"],
-            "%s.prerm" % opts.config["%PROJECT_NAME%"],
-            "%s.postrm" % opts.config["%PROJECT_NAME%"]
-    ]:
-        try:
-            copy_and_replace_dict_file("%s/%s" % (opts.packagetemp, filename),
-                                       opts.config,
-                                       "%s/%s" % (opts.dirname, filename))
-        except IOError as e:
-            if e.errno != 2:
-                raise e
+    fileslist = [fn for fn in os.listdir(opts.packagetemp)
+                 if not exclude_template(fn)]
 
-    for filename in [
-            "%s.install" % opts.config["%PROJECT_NAME%"],
-            "changelog",
-            "rules",
-            "control",
-            "copyright"
-    ]:
-        copy_and_replace_dict_file("%s/%s" % (opts.packagetemp, filename),
-                                   opts.config,
-                                   "%s/%s" % (opts.dirname, filename))
-
-    for filename in [
-            "compat"
-    ]:
-        shutil.copy("%s/%s" % (opts.packagetemp, filename), "%s/%s" %
-                    (opts.dirname, filename))
-
+    pybuilds = opts.config.get("%PYBUILD%", '').split(',')
+    pybuilds = [ver for ver in pybuilds if ver in PYBUILD_MAPPING]
+    for filename in fileslist:
+        dest_filenames = generate_service_files(filename, pybuilds)
+        for dest_filename, config_param in dest_filenames:
+            copy_and_replace_dict_file(
+                "%s/%s" % (opts.packagetemp, filename),
+                config_param or opts.config,
+                "%s/%s" % (opts.dirname, dest_filename)
+            )
     if opts.build_package:
         status = os.system("dpkg-buildpackage -b -tc -us -uc -r")
     if status:
