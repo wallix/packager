@@ -48,6 +48,7 @@ except getopt.GetoptError as err:
 
 class opts(object):
     packagetemp = "packaging/template/debian"
+    target_path = "packaging/targets/"
     force_target = None
     project_name = None
 
@@ -117,7 +118,7 @@ for o, a in options:
         # force pybuild templates and targets
         opts.use_pybuild = True
         opts.packagetemp = "packaging/template/pybuild/"
-        opts.force_target = "packaging/targets/pybuild/"
+        opts.target_path = "packaging/targets/pybuild/"
 
 if "%VERSION%" not in opts.force_config:
     print("--version is missing")
@@ -125,7 +126,7 @@ if "%VERSION%" not in opts.force_config:
     sys.exit(2)
 
 if not opts.force_target:
-    opts.force_target = "packaging/targets/"
+    opts.force_target = opts.target_path
     if "%DIST_NAME%" in opts.force_config:
         opts.force_target += opts.force_config["%DIST_NAME%"].lower()
     else:
