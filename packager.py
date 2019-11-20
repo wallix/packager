@@ -17,7 +17,7 @@ def usage():
           "[--distribution-id id] [--arch arch] [--package-distribution name] "
           "[--package-template dirname] [--force-target target] "
           "[--use-pybuild] [--no-clean] "
-          "[--use-common-changelog] [--update-changelog]"
+          "[--use-common-changelog] [--update-changelog] "
           "[--urgency urgency] [--authors authors] [--utc utc]" % sys.argv[0])
 
 
@@ -127,6 +127,40 @@ for o, a in options:
         opts.target_path = "packaging/targets/pybuild/"
 
 
+# IO Files functions BEGIN
+def readall(filename):
+    with open(filename) as f:
+        return f.read()
+
+
+def writeall(filename, s):
+    with open(filename, "w+") as f:
+        f.write(s)
+
+
+def copy_and_replace(src, dst, old, new):
+    out = readall(src)
+    out = out.replace(old, new)
+    writeall(dst, out)
+
+
+# Parse target Config files
+rgx_general = re.compile("^([^#][^=]*)\s*=\s*(.*)$")
+
+
+def parse_config_line(line):
+    m = re.search(rgx_general, line.strip())
+    if m:
+        opts.config['%%%s%%' % m.group(1).strip()] = m.group(2).strip()
+
+
+def parse_target_param(filename):
+    with open(filename) as f:
+        for l in f:
+            parse_config_line(l)
+# IO Files functions END
+
+
 def update_changelog_template(project_name, version):
     if not opts.entry_changelog:
         return False
@@ -225,40 +259,6 @@ def remove_build_dir():
     except:
         pass
 # remove existing build directory END
-
-
-# IO Files functions BEGIN
-def readall(filename):
-    with open(filename) as f:
-        return f.read()
-
-
-def writeall(filename, s):
-    with open(filename, "w+") as f:
-        f.write(s)
-
-
-def copy_and_replace(src, dst, old, new):
-    out = readall(src)
-    out = out.replace(old, new)
-    writeall(dst, out)
-
-
-# Parse target Config files
-rgx_general = re.compile("^([^#][^=]*)\s*=\s*(.*)$")
-
-
-def parse_config_line(line):
-    m = re.search(rgx_general, line.strip())
-    if m:
-        opts.config['%%%s%%' % m.group(1).strip()] = m.group(2).strip()
-
-
-def parse_target_param(filename):
-    with open(filename) as f:
-        for l in f:
-            parse_config_line(l)
-# IO Files functions END
 
 
 # Replace occurences in templates with dictionnaire
