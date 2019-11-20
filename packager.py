@@ -16,7 +16,8 @@ def usage():
           "[--distribution-name name] [--distribution-version version] "
           "[--distribution-id id] [--arch arch] [--package-distribution name] "
           "[--package-template dirname] [--force-target target] "
-          "[--use-pybuild] [--no-clean] [--use-common-changelog]"
+          "[--use-pybuild] [--no-clean] "
+          "[--use-common-changelog] [--update-changelog]"
           "[--urgency urgency] [--authors authors] [--utc utc]" % sys.argv[0])
 
 
@@ -31,6 +32,7 @@ try:
                                    "use-pybuild",
                                    "use-common-changelog",
                                    "no-clean",
+                                   "update-changelog",
                                    "distribution-name=",
                                    "distribution-version=",
                                    "distribution-id=",
@@ -65,6 +67,7 @@ class opts(object):
 
     use_pybuild = False
     clean = True
+    update_changelog = False
 
     config = {}
     config["%PREFIX%"] = 'usr/local'
@@ -86,6 +89,7 @@ for o, a in options:
         opts.force_config["%VERSION%"] = a
     elif o == "--project-name":
         opts.project_name = a
+        opts.force_config["%PROJECT_NAME%"] = a
     elif o == "--build-package":
         opts.build_package = True
     elif o == "--no-entry-changelog":
@@ -114,16 +118,97 @@ for o, a in options:
         opts.clean = False
     elif o == "--use-common-changelog":
         opts.use_common_changelog = True
+    elif o == "--update-changelog":
+        opts.update_changelog = True
     elif o == "--use-pybuild":
         # force pybuild templates and targets
         opts.use_pybuild = True
         opts.packagetemp = "packaging/template/pybuild/"
         opts.target_path = "packaging/targets/pybuild/"
 
+
+def update_changelog_template(project_name, version):
+    if not opts.entry_changelog:
+        return False
+    changelog = ''
+    common_changelog = os.path.join(opts.common_changelog_path,
+                                    opts.common_changelog_file)
+    if opts.entry_changelog and opts.use_common_changelog:
+        changelog = get_changelog_entry(
+            project_name,
+            version,
+            opts.authors,
+            opts.urgency,
+            opts.utc
+        )
+        changelog += readall(common_changelog)
+        writeall(common_changelog, changelog)
+    elif opts.entry_changelog:
+        changelog = get_changelog_entry(
+            project_name,
+            version,
+            opts.authors,
+            opts.urgency,
+            opts.utc
+        )
+        changelog += readall("%s/changelog" % opts.packagetemp)
+        writeall("%s/changelog" % opts.packagetemp, changelog)
+
+
+def get_changelog_entry(project_name, version, authors, urgency, utc):
+    if 'EDITOR' not in os.environ:
+        os.environ['EDITOR'] = 'nano'
+
+    changelog = ''
+
+    tmp_changelog = "/tmp/%s-changelog.tmp" % version
+    if os.system("%s %s" % (os.environ['EDITOR'], tmp_changelog)):
+        raise Exception("Error in `%s %s`" % (os.environ['EDITOR'],
+                                              tmp_changelog))
+    with open(tmp_changelog, "r") as f:
+        for line in f:
+            if line and line != "\n":
+                changelog += "  * "
+                changelog += line
+    try:
+        os.remove(tmp_changelog)
+    except:
+        pass
+
+    if not changelog:
+        raise Exception("Change log is empty")
+
+    return ("%s (%s%%TARGET_NAME%%) %%PKG_DISTRIBUTION%%; "
+            "urgency=%s\n\n%s\n\n -- %s  %s\n\n" % (
+                project_name,
+                version,
+                urgency,
+                changelog,
+                authors,
+                datetime.datetime.today().strftime(
+                    "%%a, %%d %%b %%Y %%H:%%M:%%S +%s" % utc
+                )
+            ))
+
+
 if "%VERSION%" not in opts.force_config:
     print("--version is missing")
     usage()
     sys.exit(2)
+
+
+try:
+    if ("%PROJECT_NAME%" in opts.force_config
+        and "%VERSION%" in opts.force_config
+        and opts.update_changelog):
+        update_changelog_template(opts.force_config["%PROJECT_NAME%"],
+                                  opts.force_config["%VERSION%"])
+        opts.entry_changelog = False  # no need to update changelog again
+        if not opts.build_package:
+            exit(0)
+except Exception as e:
+    print("Update changelog failed: %s" % e)
+    exit(-1)
 
 if not opts.force_target:
     opts.force_target = opts.target_path
@@ -202,42 +287,6 @@ def replace_dict_file(filename, dico):
 def copy_and_replace_dict_file(filename, dico, target):
     out = replace_dict_file(filename, dico)
     writeall(target, out)
-
-
-def get_changelog_entry(project_name, version, authors, urgency, utc):
-    if 'EDITOR' not in os.environ:
-        os.environ['EDITOR'] = 'nano'
-
-    changelog = ''
-
-    tmp_changelog = "/tmp/%s-changelog.tmp" % version
-    if os.system("%s %s" % (os.environ['EDITOR'], tmp_changelog)):
-        raise Exception("Error in `%s %s`" % (os.environ['EDITOR'],
-                                              tmp_changelog))
-    with open(tmp_changelog, "r") as f:
-        for line in f:
-            if line and line != "\n":
-                changelog += "  * "
-                changelog += line
-    try:
-        os.remove(tmp_changelog)
-    except:
-        pass
-
-    if not changelog:
-        raise Exception("Change log is empty")
-
-    return ("%s (%s%%TARGET_NAME%%) %%PKG_DISTRIBUTION%%; "
-            "urgency=%s\n\n%s\n\n -- %s  %s\n\n" % (
-                project_name,
-                version,
-                urgency,
-                changelog,
-                authors,
-                datetime.datetime.today().strftime(
-                    "%%a, %%d %%b %%Y %%H:%%M:%%S +%s" % utc
-                )
-            ))
 
 
 # control file for dpkg packager only allow 'amd64' for 64bits architectures
@@ -359,37 +408,17 @@ try:
         opts.authors = opts.config["%MAINTAINER%"] if (
             "%MAINTAINER%" in opts.config) else "Maintainer"
 
-    # BEGIN update changelog
-    changelog = ''
-    common_changelog = os.path.join(opts.common_changelog_path,
-                                    opts.common_changelog_file)
-    if opts.entry_changelog and opts.use_common_changelog:
-        changelog = get_changelog_entry(
-            opts.config["%PROJECT_NAME%"],
-            opts.config["%VERSION%"],
-            opts.authors,
-            opts.urgency,
-            opts.utc
-        )
-        changelog += readall(common_changelog)
-        writeall(common_changelog, changelog)
-    elif opts.entry_changelog:
-        changelog = get_changelog_entry(
-            opts.config["%PROJECT_NAME%"],
-            opts.config["%VERSION%"],
-            opts.authors,
-            opts.urgency,
-            opts.utc
-        )
-        changelog += readall("%s/changelog" % opts.packagetemp)
-        writeall("%s/changelog" % opts.packagetemp, changelog)
+    if opts.entry_changelog:
+        update_changelog_template(opts.config["%PROJECT_NAME%"],
+                                  opts.config["%VERSION%"])
 
     add_changelog = None
+    common_changelog = os.path.join(opts.common_changelog_path,
+                                    opts.common_changelog_file)
     if opts.use_common_changelog and os.path.isfile(common_changelog):
         add_changelog = (opts.common_changelog_path,
                          opts.common_changelog_file)
 
-    # END update changelog
     excluded_files = set()
     if add_changelog is not None:
         excluded_files.add('changelog')
