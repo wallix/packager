@@ -60,7 +60,7 @@ class opts(object):
     common_changelog_path = "packaging/template/"
     common_changelog_file = "common_changelog"
     urgency = "low"
-    authors = None
+    authors = "Dev <dev@wallix.com>"
 
     dirname = "debian"
     utc = "0200"
@@ -167,26 +167,19 @@ def update_changelog_template(project_name, version):
     changelog = ''
     common_changelog = os.path.join(opts.common_changelog_path,
                                     opts.common_changelog_file)
-    if opts.entry_changelog and opts.use_common_changelog:
-        changelog = get_changelog_entry(
-            project_name,
-            version,
-            opts.authors,
-            opts.urgency,
-            opts.utc
-        )
-        changelog += readall(common_changelog)
-        writeall(common_changelog, changelog)
-    elif opts.entry_changelog:
-        changelog = get_changelog_entry(
-            project_name,
-            version,
-            opts.authors,
-            opts.urgency,
-            opts.utc
-        )
-        changelog += readall("%s/changelog" % opts.packagetemp)
-        writeall("%s/changelog" % opts.packagetemp, changelog)
+    # On changelog update, always update both changelog if present
+    changelog = get_changelog_entry(
+        project_name,
+        version,
+        opts.authors,
+        opts.urgency,
+        opts.utc
+    )
+    if os.path.isfile(common_changelog):
+        common_cl_data = changelog + readall(common_changelog)
+        writeall(common_changelog, common_cl_data)
+    changelog += readall("%s/changelog" % opts.packagetemp)
+    writeall("%s/changelog" % opts.packagetemp, changelog)
 
 
 def get_changelog_entry(project_name, version, authors, urgency, utc):
@@ -214,7 +207,7 @@ def get_changelog_entry(project_name, version, authors, urgency, utc):
 
     return ("%s (%s%%TARGET_NAME%%) %%PKG_DISTRIBUTION%%; "
             "urgency=%s\n\n%s\n\n -- %s  %s\n\n" % (
-                project_name,
+                project_name or "%PROJECT_NAME%",
                 version,
                 urgency,
                 changelog,
@@ -232,14 +225,15 @@ if "%VERSION%" not in opts.force_config:
 
 
 try:
-    if ("%PROJECT_NAME%" in opts.force_config
-        and "%VERSION%" in opts.force_config
+    if ("%VERSION%" in opts.force_config
         and opts.update_changelog):
-        update_changelog_template(opts.force_config["%PROJECT_NAME%"],
+        update_changelog_template(opts.force_config.get("%PROJECT_NAME%", ""),
                                   opts.force_config["%VERSION%"])
         opts.entry_changelog = False  # no need to update changelog again
         if not opts.build_package:
             exit(0)
+    elif opts.update_changelog:
+        print("Update changelog Missing Version")
 except Exception as e:
     print("Update changelog failed: %s" % e)
     exit(-1)
@@ -408,9 +402,10 @@ try:
         opts.authors = opts.config["%MAINTAINER%"] if (
             "%MAINTAINER%" in opts.config) else "Maintainer"
 
-    if opts.entry_changelog:
-        update_changelog_template(opts.config["%PROJECT_NAME%"],
-                                  opts.config["%VERSION%"])
+    # changelog should not be updated during build !!!
+    # if opts.entry_changelog:
+    #     update_changelog_template(opts.config["%PROJECT_NAME%"],
+    #                               opts.config["%VERSION%"])
 
     add_changelog = None
     common_changelog = os.path.join(opts.common_changelog_path,
