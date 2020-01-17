@@ -125,6 +125,8 @@ for o, a in options:
         opts.use_pybuild = True
         opts.packagetemp = "packaging/template/pybuild/"
         opts.target_path = "packaging/targets/pybuild/"
+        # force use of common_changelog for pybuild
+        opts.use_common_changelog = True
 
 
 # IO Files functions BEGIN
