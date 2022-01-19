@@ -1,14 +1,35 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import getopt
 import sys
 import shutil
 import os
 import re
-import platform
 import datetime
 import argparse
+
+
+parser = argparse.ArgumentParser(description='Packager for proxies repositories')
+parser.add_argument('target', metavar='PATH', type=str, help='target file')
+parser.add_argument('--build', metavar='DIRNAME', type=str, default='debian', help='build directory')
+parser.add_argument('--no-clean', action='store_true', help='do not remove existing build directory')
+parser.add_argument('--package-template', metavar='DIRNAME', type=str,
+                    default='packaging/template/debian', help='package template directory')
+parser.add_argument('--build-package', action='store_true', help='run dpkg-buildpackage')
+parser.add_argument('--project-name', metavar='NAME', type=str)
+parser.add_argument('--project-version', metavar='VERSION', type=str)
+parser.add_argument('--update-changelog', action='store_true')
+parser.add_argument('--urgency', type=str, default='low')
+parser.add_argument('--utc', type=str, default='0200')
+parser.add_argument('--maintainer', type=str, default='Proxies Team <R&D-Project-Bastion-Proxies@wallix.com>')
+parser.add_argument('--distribution-name')
+parser.add_argument('--distribution-version')
+parser.add_argument('--distribution-id')
+parser.add_argument('--package-distribution')
+parser.add_argument('-s', '--variable', metavar='VARIABLE=VALUE', action='append', default=[])
+parser.add_argument('--show-config', action='store_true', help='show configs')
+
+args = parser.parse_args()
 
 
 def readall(filename:str) -> str:
@@ -44,6 +65,7 @@ def get_changelog_entry(project_name:str, version:str, maintainer:str, urgency:s
     return (f'{project_name or "%PROJECT_NAME%"} ({version}%TARGET_NAME%) %PKG_DISTRIBUTION%; '
             f'urgency={urgency}\n\n{"".join(changelog)}\n\n -- {maintainer}  {now}\n\n')
 
+
 rgx_replace_var = re.compile('%[A-Z][A-Z0-9_]*%')
 
 def replace_dict_all(text:str, dico:dict) -> str:
@@ -57,28 +79,6 @@ def replace_dict_all(text:str, dico:dict) -> str:
     result.append(text[pos:])
     return ''.join(result)
 
-
-parser = argparse.ArgumentParser(description='Packager for proxies repositories')
-parser.add_argument('target', metavar='PATH', type=str, help='target file')
-parser.add_argument('--build', metavar='DIRNAME', type=str, default='debian', help='build directory')
-parser.add_argument('--no-clean', action='store_true', help='do not remove existing build directory')
-parser.add_argument('--package-template', metavar='DIRNAME', type=str,
-                    default='packaging/template/debian', help='package template directory')
-parser.add_argument('--build-package', action='store_true', help='run dpkg-buildpackage')
-parser.add_argument('--project-name', metavar='NAME', type=str)
-parser.add_argument('--project-version', metavar='VERSION', type=str)
-parser.add_argument('--update-changelog', action='store_true')
-parser.add_argument('--urgency', type=str, default='low')
-parser.add_argument('--utc', type=str, default='0200')
-parser.add_argument('--maintainer', type=str, default='Proxies Team <R&D-Project-Bastion-Proxies@wallix.com>')
-parser.add_argument('--distribution-name')
-parser.add_argument('--distribution-version')
-parser.add_argument('--distribution-id')
-parser.add_argument('--package-distribution')
-parser.add_argument('-s', '--variable', metavar='VARIABLE=VALUE', action='append', default=[])
-parser.add_argument('--show-config', action='store_true', help='show configs')
-
-args = parser.parse_args()
 
 if not args.distribution_name or not args.distribution_version or not args.distribution_id:
     import distro
