@@ -377,6 +377,6 @@ def run_packager(args, hooks:Hook=Hook()) -> None:
             exit(5)
 
 if __name__ == '__main__':
-    parser = argument_parser('Packager for proxies repositories')
+    parser = argument_parser('Packager for proxies repositories (v2.0.0)')
     args = parser.parse_args()
     run_packager(args)
