@@ -4,10 +4,6 @@
 import unittest
 import os
 import sys
-
-dir_path = os.path.dirname(os.path.realpath(__file__))
-
-sys.path.append(os.path.dirname(dir_path))
 import packager
 
 class TestPackager(unittest.TestCase):
@@ -26,7 +22,7 @@ class TestPackager(unittest.TestCase):
 
     def test_read_and_update_config(self):
         config = packager.read_and_update_config(
-            f'{dir_path}/data/config1', {'DIST_NAME':'debian', 'DIST_ID':'squeeze'})
+            'tests/data/config1', {'DIST_NAME':'debian', 'DIST_ID':'squeeze'})
         self.assertEqual(config, {
             'DIST_ID': 'squeeze',
             'DIST_NAME': 'debian',
