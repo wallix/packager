@@ -1,0 +1,4 @@
+include config2
+X=1
+VAR1=v1
+include config3

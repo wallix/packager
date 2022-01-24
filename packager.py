@@ -5,6 +5,7 @@ import sys
 import os
 import re
 import shutil
+import argparse
 import datetime
 import subprocess
 from collections.abc import Iterable
@@ -37,13 +38,13 @@ def read_and_update_config(filename:str, configs:dict[str,str]=None) -> dict[str
             elif m := re.search(parse_config_rgx, line):
                 configs[m.group(1).strip()] = m.group(2).strip()
 
-    if not configs['PKG_DISTRIBUTION']:
+    if 'PKG_DISTRIBUTION' not in configs:
         if configs['DIST_NAME'].lower() == 'ubuntu':
             configs['PKG_DISTRIBUTION'] = 'unstable'
         else:
             configs['PKG_DISTRIBUTION'] = configs['DIST_ID']
 
-    if not configs['TARGET_NAME']:
+    if 'TARGET_NAME' not in configs:
         if configs['DIST_NAME'].lower() == 'ubuntu':
             configs['TARGET_NAME'] = '+' + configs['DIST_ID']
 
@@ -59,8 +60,8 @@ def update_config_variables(config:dict[str,str], variables:Iterable[str]) -> li
             variable_errors.append(var)
             continue
         k = m.group(1)
-        newvalue = m.group(3) if m.group(2) == '=' else configs.get(k, '') + m.group(3)
-        configs[k] = newvalue
+        newvalue = m.group(3) if m.group(2) == '=' else config.get(k, '') + m.group(3)
+        config[k] = newvalue
     return variable_errors
 
 def print_configs(configs:dict[str,str]) -> None:
@@ -123,7 +124,7 @@ def create_build_directory(package_template:str, output_build:str) -> None:
         writeall(f'{output_build}/{filename}', out)
 
 def less_version(lhs_version:str, rhs_version:str) -> bool:
-    rgx_split_version = re.compile('[^\d]*(\d+)(?:.(\d+))?(?:.(\d+))?(?:.(\d+))?(?:.(\d+))?(.*)')
+    rgx_split_version = re.compile('[^\d]*(\d+)(?:\.(\d+))?(?:[-.](\d+))?(?:[-.](\d+))?(?:[-.](\d+))?(.*)')
     to_tuple = lambda m: (
         int(m.group(1)),
         int(m.group(2) or 0),
@@ -173,7 +174,7 @@ def read_version_or_die(pattern:str, file_version:str, errcode:int) -> tuple[str
         print('File version is empty', file=sys.stderr)
         exit(errcode)
 
-    rgx_version = regex_version_or_die(pattern, 1)
+    rgx_version = regex_version_or_die(pattern, errcode)
     content = readall(file_version)
 
     m = rgx_version.match(content)
@@ -182,12 +183,9 @@ def read_version_or_die(pattern:str, file_version:str, errcode:int) -> tuple[str
         print(f'Version not found (pattern is {pattern})', file=sys.stderr)
         exit(errcode)
 
-    return m.group(1), content
+    return m.group(1), m.span(1), content
 
-
-if __name__ == '__main__':
-    import argparse
-
+def argument_parser(description:str) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description='Packager for proxies repositories')
 
     group = parser.add_mutually_exclusive_group(required=True)
@@ -236,8 +234,21 @@ if __name__ == '__main__':
     group.add_argument('-s', '--variable', metavar='VARIABLE=VALUE', action='append', default=[],
                        help='support of VARIABLE=VALUE and VARIABLE+=VALUE')
 
-    args = parser.parse_args()
+    return parser
 
+class Hook:
+    def normalize_version(self, version:str) -> str:
+        """normalized version from file"""
+        return version
+
+    def sanitize_version(self, old_version:str, new_version:str) -> str:
+        """convert to a writable version"""
+        return new_version
+
+    def post_updated_version(self, old_version:str, new_version:str) -> None:
+        pass
+
+def run_packager(args, hooks:Hook=Hook()) -> None:
     if not args.show_config and not args.get_version and not args.no_check_uncommited:
         changes = git_uncommited_changes()
         if changes:
@@ -245,29 +256,37 @@ if __name__ == '__main__':
                   'Please commit before packaging or use --no-check-uncommited', file=sys.stderr)
             exit(11)
 
-    # Version
+    # get version
     new_version = args.new_version
     if args.get_version or new_version is not None:
-        version, content = read_version_or_die(args.pattern_version, args.file_version, 1)
+        results = read_version_or_die(args.pattern_version, args.file_version, 1)
+        print(hook.normalize_version(results[0]))
+        exit(0)
 
-        if args.get_version:
-            print(version)
-            exit(0)
-
+    # set version
+    if new_version is not None:
         if not new_version:
             print(f'New version is empty', file=sys.stderr)
-            exit(3)
+            exit(2)
+
+        version, pos, content = read_version_or_die(args.pattern_version, args.file_version, 1)
+        version = hook.normalize_version(version)
 
         if not args.force_version and not less_version(version, new_version):
-            print(f'New version ({new_version}) is less than old version ({version})', file=sys.stderr)
-            exit(4)
+            print(f'New version ({new_version}) is less than old version ({version})',
+                  file=sys.stderr)
+            exit(3)
 
-        content = f'{content[:m.start(1)]}{new_version}{content[m.end(1):]}'
+        new_version = hook.sanitize_version(version, new_version)
 
         tag_exists, tag_cat = git_tag_exists(new_version)
         if tag_exists:
             print(f'Tag {new_version} already exists ({tag_cat})', file=sys.stderr)
             exit(4)
+
+        writeall(args.file_version,
+                 f'{content[:pos[0]]}{new_version}{content[pos[1]:]}')
+        hook.post_updated_version(version, new_version)
 
         if not args.no_commit_and_tag:
             shell_cmd(['git', 'commit', '-am', args.commit_message % (new_version,)])
@@ -275,6 +294,7 @@ if __name__ == '__main__':
             if not args.no_push:
                 shell_cmd(['git', 'push'])
                 shell_cmd(['git', 'push', '--tags'])
+        exit(0)
 
     if not args.target:
         print('--target is missing', file=sys.stderr)
@@ -317,13 +337,15 @@ if __name__ == '__main__':
     project_name = configs['PROJECT_NAME']
 
     if not args.no_check_version or not project_version:
-        version, _ = read_version_or_die(args.pattern_version, args.file_version, 3)
-        if not args.no_check_version and (project_version != version or project_version != git_last_tag()):
-            print('Repository head mismatch current version. Ignored with --no-check-version', file=sys.stderr)
-            exit(4)
-
+        results = read_version_or_die(args.pattern_version, args.file_version, 3)
+        version = hook.normalize_version(results[0])
         if not project_version:
             project_version = version
+        elif not args.no_check_version and (project_version != version or project_version != git_last_tag()):
+            print('Repository head mismatch current version. Ignored with --no-check-version', file=sys.stderr)
+            exit(4)
+    elif project_version:
+        project_version = hook.normalize_version(project_version)
 
     if not project_version or not project_name:
         if not project_version:
@@ -353,3 +375,8 @@ if __name__ == '__main__':
         if status:
             print('Build failed: dpkg-buildpackage error', file=sys.stderr)
             exit(5)
+
+if __name__ == '__main__':
+    parser = argument_parser('Packager for proxies repositories')
+    args = parser.parse_args()
+    run_packager(args)
