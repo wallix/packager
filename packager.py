@@ -8,9 +8,13 @@ import shutil
 import argparse
 import datetime
 import subprocess
+import traceback
 from collections.abc import Iterable
 
 var_ident = '[A-Z][A-Z0-9_]*'
+
+class PackagerError(Exception):
+    pass
 
 def replace_dict_all(text:str, dico:dict[str,str]) -> str:
     rgx_replace_var = re.compile(f'%{var_ident}%')
@@ -86,7 +90,7 @@ def get_changelog_entry(project_name:str, version:str, maintainer:str, urgency:s
     tmp_changelog = f'/tmp/{version}-changelog.tmp'
     cmd = f'{editor} {tmp_changelog}'
     if os.system(cmd):
-        raise Exception(f'Error in `{cmd}`')
+        raise PackagerError(f'Error in `{cmd}`')
 
     with open(tmp_changelog) as f:
         for line in f:
@@ -97,7 +101,7 @@ def get_changelog_entry(project_name:str, version:str, maintainer:str, urgency:s
     os.remove(tmp_changelog)
 
     if not changelog:
-        raise Exception('Change log is empty')
+        raise PackagerError('Change log is empty')
 
     now = datetime.datetime.today().strftime(f'%a, %d %b %Y %H:%M:%S +{utc}')
     return (f'{project_name or "%PROJECT_NAME%"} ({version}%TARGET_NAME%) %PKG_DISTRIBUTION%; '
@@ -162,26 +166,25 @@ def git_tag_exists(tag:str) -> tuple[bool, str]:
 def git_last_tag() -> str:
     return shell_cmd(['git', 'describe', '--tags']).partition('\n')[0]
 
-def regex_version_or_die(pattern:str, errcode:int) -> re.Pattern:
+def regex_version_or_die(pattern:str) -> re.Pattern:
     try:
         return re.compile(pattern)
     except re.error as e:
-        print('Regex version:', e, file=sys.stderr)
-        exit(errcode)
+        tb = sys.exc_info()[2]
+        raise PackagerError(f'Invalid error on regex version: {pattern}').with_traceback(tb)
 
-def read_version_or_die(pattern:str, file_version:str, errcode:int) -> tuple[str, str]:
+def read_version_or_die(pattern:str, file_version:str) -> tuple[str, str]:
     if not file_version:
-        print('File version is empty', file=sys.stderr)
+        raise PackagerError('File version is empty')
         exit(errcode)
 
-    rgx_version = regex_version_or_die(pattern, errcode)
+    rgx_version = regex_version_or_die(pattern)
     content = readall(file_version)
 
     m = rgx_version.match(content)
 
     if m is None:
-        print(f'Version not found (pattern is {pattern})', file=sys.stderr)
-        exit(errcode)
+        raise PackagerError(f'Version not found: file={file_version}  pattern={pattern}')
 
     return m.group(1), m.span(1), content
 
@@ -209,7 +212,7 @@ def argument_parser(description:str) -> argparse.ArgumentParser:
     group.add_argument('--commit-and-tag', dest='no_commit_and_tag', action='store_false')
     group.add_argument('--no-push', action='store_true')
     group.add_argument('--push', dest='no_push', action='store_false')
-    group.add_argument('--commit-message', metavar='TEMPLATE', default='Version %s', action='store_false',
+    group.add_argument('--commit-message', metavar='TEMPLATE', default='Version %s',
                        help='commit message template, %s is replaced with new version')
 
     group = parser.add_argument_group('Build package options')
@@ -252,37 +255,33 @@ def run_packager(args, hooks:Hook=Hook()) -> None:
     if not args.show_config and not args.get_version and not args.no_check_uncommited:
         changes = git_uncommited_changes()
         if changes:
-            print(f'Your repository has uncommited changes:\n{changes}\n'
-                  'Please commit before packaging or use --no-check-uncommited', file=sys.stderr)
-            exit(11)
+            raise PackagerError(f'Your repository has uncommited changes:\n{changes}\n'
+                                'Please commit before packaging or use --no-check-uncommited')
 
     # get version
     new_version = args.new_version
     if args.get_version or new_version is not None:
-        results = read_version_or_die(args.pattern_version, args.file_version, 1)
+        results = read_version_or_die(args.pattern_version, args.file_version)
         print(hook.normalize_version(results[0]))
-        exit(0)
+        return
 
     # set version
     if new_version is not None:
         if not new_version:
-            print(f'New version is empty', file=sys.stderr)
-            exit(2)
+            raise PackagerError(f'New version is empty')
 
-        version, pos, content = read_version_or_die(args.pattern_version, args.file_version, 1)
+        version, pos, content = read_version_or_die(args.pattern_version, args.file_version)
         version = hook.normalize_version(version)
 
         if not args.force_version and not less_version(version, new_version):
-            print(f'New version ({new_version}) is less than old version ({version})',
-                  file=sys.stderr)
-            exit(3)
+            raise PackagerError(f'New version ({new_version}) is less than'
+                                f' old version ({version})')
 
         new_version = hook.sanitize_version(version, new_version)
 
         tag_exists, tag_cat = git_tag_exists(new_version)
         if tag_exists:
-            print(f'Tag {new_version} already exists ({tag_cat})', file=sys.stderr)
-            exit(4)
+            raise PackagerError(f'Tag {new_version} already exists ({tag_cat})')
 
         writeall(args.file_version,
                  f'{content[:pos[0]]}{new_version}{content[pos[1]:]}')
@@ -294,11 +293,10 @@ def run_packager(args, hooks:Hook=Hook()) -> None:
             if not args.no_push:
                 shell_cmd(['git', 'push'])
                 shell_cmd(['git', 'push', '--tags'])
-        exit(0)
+        return
 
     if not args.target:
-        print('--target is missing', file=sys.stderr)
-        exit(1)
+        raise PackagerError('--target is missing')
 
     # Build / Show config
     if not args.distribution_name or not args.distribution_version or not args.distribution_id:
@@ -325,34 +323,34 @@ def run_packager(args, hooks:Hook=Hook()) -> None:
 
     variable_errors = update_config_variables(configs, args.variable)
     if variable_errors:
-        print('Parse error on -s / --variable: "', '", "'.join(variable_errors), '"',
-              sep='', file=sys.stderr)
-        exit(20)
+        errors_s = '", "'.join(variable_errors)
+        raise PackagerError(f'Parse error on -s / --variable: "{errors_s}"')
 
     if args.show_config:
         print_configs(configs)
-        exit(0)
+        return
 
     project_version = configs['PROJECT_VERSION']
     project_name = configs['PROJECT_NAME']
 
     if not args.no_check_version or not project_version:
-        results = read_version_or_die(args.pattern_version, args.file_version, 3)
+        results = read_version_or_die(args.pattern_version, args.file_version)
         version = hook.normalize_version(results[0])
         if not project_version:
             project_version = version
         elif not args.no_check_version and (project_version != version or project_version != git_last_tag()):
-            print('Repository head mismatch current version. Ignored with --no-check-version', file=sys.stderr)
-            exit(4)
+            raise PackagerError('Repository head mismatch current version. '
+                                'Ignored with --no-check-version')
     elif project_version:
         project_version = hook.normalize_version(project_version)
 
     if not project_version or not project_name:
+        errors = []
         if not project_version:
-            print('--project-version or -s PROJECT_VERSION=... is missing', file=sys.stderr)
+            errors.append('--project-version or -s PROJECT_VERSION=... is missing')
         if not project_name:
-            print('--project-name or -s PROJECT_NAME=... is missing', file=sys.stderr)
-        exit(2)
+            errors.append('--project-name or -s PROJECT_NAME=... is missing')
+        raise PackagerError(', '.join(errors))
 
     if args.update_changelog:
         changelog = get_changelog_entry(project_name,
@@ -373,10 +371,16 @@ def run_packager(args, hooks:Hook=Hook()) -> None:
     if args.build_package:
         status = os.system('dpkg-buildpackage -b -tc -us -uc -r')
         if status:
-            print('Build failed: dpkg-buildpackage error', file=sys.stderr)
-            exit(5)
+            raise PackagerError('Build failed: dpkg-buildpackage error')
 
 if __name__ == '__main__':
     parser = argument_parser('Packager for proxies repositories (v2.0.0)')
     args = parser.parse_args()
-    run_packager(args)
+    try:
+        run_packager(args)
+    except Exception as e:
+        s = str(e)
+        border = '=' * (len(s) + 4)
+        print(f'\x1b[31m{border}\n= {s} =\n{border}\x1b[0m', file=sys.stderr)
+        traceback.print_tb(sys.exc_info()[2], file=sys.stderr)
+        exit(1)
