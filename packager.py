@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+##
+# Copyright (c) 2010-2022 WALLIX, SARL. All rights reserved.
+# Licensed computer software. Property of WALLIX.
+# Product name: Packager
+# Author(s): Christophe Grosjean, Jonathan Poelen, Raphael Zhou, Meng Tan
+# Module description: Create package and git tag
+##
 
 import sys
 import os
