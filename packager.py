@@ -258,7 +258,7 @@ class Hook:
     def post_updated_version(self, old_version:str, new_version:str) -> None:
         pass
 
-def run_packager(args, hooks:Hook=Hook()) -> None:
+def run_packager(args, hook:Hook=Hook()) -> None:
     if not args.show_config and not args.get_version and not args.no_check_uncommited:
         changes = git_uncommited_changes()
         if changes:
