@@ -80,7 +80,8 @@ if __name__ == '__main__':
     parser.add_argument('submodule-path', nargs='+', help='last path is used')
     parser.add_argument('-s', '--sync-hook', nargs='?', metavar='CMD',
                         const='./custom_hooks/sync_repo.sh',
-                        default='git fetch -p origin')
+                        default='git fetch -p origin',
+                        help='disabled that with an empty command')
     parser.add_argument('-u', '--username')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-b', '--branch')
