@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import unittest
-import os
-import sys
 import packager
 
 class TestPackager(unittest.TestCase):
