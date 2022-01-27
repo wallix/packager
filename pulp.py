@@ -15,9 +15,9 @@ import os
 import re
 from typing import Dict, Tuple, Optional, Iterable
 
-def shell_cmd(cmd:str) -> str:
-    print('$', cmd if type(cmd) == str else ' '.join(cmd))
-    return subprocess.check_output(cmd, shell=True, text=True)
+def shell_cmd(args:Iterable[str]) -> str:
+    print('$\x1b[34m', ' '.join(f'"{arg}"' for arg in args), '\x1b[0m')
+    return subprocess.check_output(args, text=True)
 
 def fetch_clone(local_path:str, remote_path:str, ssh_address:str, cmd:str) -> None:
     print(f"== Synchronize {local_path} clone repository ==")
@@ -53,17 +53,17 @@ def read_gitconfig(lines:Iterable[str]) -> Dict[LocalPath, RemotePath]:
     d = {}
 
     local_path = None
-    for line in Iterable:
+    for line in lines:
         line = line.strip()
 
         m = re_submodule.match(line)
-        if m not is None:
+        if m is not None:
             local_path = m.group(1)
-        elif not line.startswith('['):
+        elif line.startswith('['):
             local_path = None
         elif local_path:
             m = re_url.match(line)
-            if m not is None:
+            if m is not None:
                 d[local_path] = m.group(1)
 
     return d
@@ -78,8 +78,8 @@ def explode_git_url(url:str) -> Optional[Tuple[User,Addr,RemotePath]]:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Synchronize submodules')
     parser.add_argument('module', nargs='?')
-    parser.add_argument('--sync-hook', nargs='?',
-                        const='./custom_hooks/sync_repo.sh'
+    parser.add_argument('-s', '--sync-hook', nargs='?',
+                        const='./custom_hooks/sync_repo.sh',
                         default='git fetch -p origin')
     parser.add_argument('-u', '--username')
     group = parser.add_mutually_exclusive_group()
@@ -91,13 +91,24 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     module = args.module or args.default_module
+    if not module:
+        parser.print_usage(sys.stderr)
+        print(f"Module is missing", file=sys.stderr)
+        exit(1)
 
     try:
         if args.sync_hook:
             with open('.git/config') as f:
                 config = read_gitconfig(f)
 
-            user, addr, remote_path = explode_git_url(config[module])
+            if module not in config:
+                raise Exception(f'Unknown config for {module}')
+
+            infos = explode_git_url(config[module])
+            if infos is None:
+                raise Exception(f'Unknown config for {module}')
+
+            user, addr, remote_path = infos
             fetch_clone(module, remote_path,
                         f'{args.username or user}@{addr}', args.sync_hook)
 
@@ -108,7 +119,7 @@ if __name__ == '__main__':
         elif args.commit_hash:
             set_commit(module, args.commit_hash)
     except Exception as e:
-        print(f"/!\ Setting {module} submodule failed: \x1b[31m{e}\x1b[0m"
+        print(f"/!\ Setting {module} submodule failed: \x1b[31m{e}\x1b[0m",
               file=sys.stderr)
         import traceback
         traceback.print_tb(sys.exc_info()[2], file=sys.stderr)
