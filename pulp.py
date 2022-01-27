@@ -77,8 +77,8 @@ def explode_git_url(url:str) -> Optional[Tuple[User,Addr,RemotePath]]:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Synchronize submodules')
-    parser.add_argument('module', nargs='?')
-    parser.add_argument('-s', '--sync-hook', nargs='?',
+    parser.add_argument('submodule-path', nargs='+', help='last path is used')
+    parser.add_argument('-s', '--sync-hook', nargs='?', metavar='CMD',
                         const='./custom_hooks/sync_repo.sh',
                         default='git fetch -p origin')
     parser.add_argument('-u', '--username')
@@ -86,40 +86,35 @@ if __name__ == '__main__':
     group.add_argument('-b', '--branch')
     group.add_argument('-t', '--tag')
     group.add_argument('-c', '--commit-hash')
-    group.add_argument('--default-module')
 
     args = parser.parse_args()
 
-    module = args.module or args.default_module
-    if not module:
-        parser.print_usage(sys.stderr)
-        print(f"Module is missing", file=sys.stderr)
-        exit(1)
+    submodule_path = args.submodule_path[-1]
 
     try:
         if args.sync_hook:
             with open('.git/config') as f:
                 config = read_gitconfig(f)
 
-            if module not in config:
-                raise Exception(f'Unknown config for {module}')
+            if submodule_path not in config:
+                raise Exception(f'Unknown config for {submodule_path}')
 
-            infos = explode_git_url(config[module])
+            infos = explode_git_url(config[submodule_path])
             if infos is None:
-                raise Exception(f'Unknown config for {module}')
+                raise Exception(f'Unknown config for {submodule_path}')
 
             user, addr, remote_path = infos
-            fetch_clone(module, remote_path,
+            fetch_clone(submodule_path, remote_path,
                         f'{args.username or user}@{addr}', args.sync_hook)
 
         if args.branch:
-            set_branch(module, args.branch)
+            set_branch(submodule_path, args.branch)
         elif args.tag:
-            set_tag(module, args.tag)
+            set_tag(submodule_path, args.tag)
         elif args.commit_hash:
-            set_commit(module, args.commit_hash)
+            set_commit(submodule_path, args.commit_hash)
     except Exception as e:
-        print(f"/!\ Setting {module} submodule failed: \x1b[31m{e}\x1b[0m",
+        print(f"/!\ Setting {submodule_path} submodule failed: \x1b[31m{e}\x1b[0m",
               file=sys.stderr)
         import traceback
         traceback.print_tb(sys.exc_info()[2], file=sys.stderr)
