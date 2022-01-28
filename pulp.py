@@ -77,7 +77,7 @@ def explode_git_url(url:str) -> Optional[Tuple[User,Addr,RemotePath]]:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Synchronize submodules')
-    parser.add_argument('submodule-path', nargs='+', help='last path is used')
+    parser.add_argument('submodule', nargs='+', help='last path is used')
     parser.add_argument('-s', '--sync-hook', nargs='?', metavar='CMD',
                         const='./custom_hooks/sync_repo.sh',
                         default='git fetch -p origin',
@@ -88,9 +88,9 @@ if __name__ == '__main__':
     group.add_argument('-t', '--tag')
     group.add_argument('-c', '--commit-hash')
 
-    args = parser.parse_args()
+    args = parser.parse_intermixed_args()
 
-    submodule_path = args.submodule_path[-1]
+    submodule_path = args.submodule[-1]
 
     try:
         if args.sync_hook:
