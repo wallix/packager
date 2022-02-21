@@ -128,7 +128,7 @@ def update_changelog(changelog_path: str, changelog: str) -> None:
     writeall(changelog_path, changelog)
 
 
-def create_build_directory(package_template: str, output_build: str) -> None:
+def create_build_directory(package_template: str, output_build: str, configs: dict[str, str]) -> None:
     rgx_tempfile = re.compile('^#.*#$|~$')
 
     try:
@@ -149,7 +149,7 @@ def less_version(lhs_version: str, rhs_version: str) -> bool:
     rgx_split_version = re.compile(
         r'[^\d]*(\d+)(?:\.(\d+))?(?:[-.](\d+))?(?:[-.](\d+))?(?:[-.](\d+))?(.*)')
 
-    def to_tuple(m): return (
+    def to_tuple(m: re.Match): return (
         int(m.group(1)),
         int(m.group(2) or 0),
         int(m.group(3) or 0),
@@ -172,16 +172,18 @@ def git_uncommited_changes() -> str:
 
 
 def git_tag_exists(tag: str) -> tuple[bool, str]:
-    tag = tag+'\n'
-
     # local tag
     tags = shell_cmd(['git', 'tag', '--list'])
-    if tag in tags:
+    if tag in tags.split('\n'):
         return (True, 'local')
 
     # remote tag
     tags = shell_cmd(['git', 'ls-remote', '--tags', 'origin'])
-    if '/' + tag in tags:
+    # tags contents:
+    # 7b997fa58cd40848273c4b1469c787b0cdd69e84        refs/tags/9.1.33
+    # dd3d667d68906c77e6fc47b5b8d19ff12fc47104        refs/tags/9.1.35
+    #                                                          ^      \n
+    if f'/{tag}\n' in tags:
         return (True, 'remote')
 
     return (False, '')
@@ -203,7 +205,6 @@ def regex_version_or_die(pattern: str) -> re.Pattern:
 def read_version_or_die(pattern: str, file_version: str) -> tuple[str, str]:
     if not file_version:
         raise PackagerError('File version is empty')
-        exit(errcode)
 
     rgx_version = regex_version_or_die(pattern)
     content = readall(file_version)
@@ -412,7 +413,7 @@ def run_packager(args, hook: Hook = Hook()) -> None:
         except OSError:
             pass
 
-    create_build_directory(args.package_template, args.output_build)
+    create_build_directory(args.package_template, args.output_build, configs)
 
     if args.build_package:
         status = os.system('dpkg-buildpackage -b -tc -us -uc -r')
