@@ -20,10 +20,12 @@ from collections.abc import Iterable
 
 var_ident = '[A-Z][A-Z0-9_]*'
 
+
 class PackagerError(Exception):
     pass
 
-def replace_dict_all(text:str, dico:dict[str,str]) -> str:
+
+def replace_dict_all(text: str, dico: dict[str, str]) -> str:
     rgx_replace_var = re.compile(f'%{var_ident}%')
     text_parts = []
     pos = 0
@@ -35,9 +37,10 @@ def replace_dict_all(text:str, dico:dict[str,str]) -> str:
     text_parts.append(text[pos:])
     return ''.join(text_parts)
 
-def read_and_update_config(filename:str, configs:dict[str,str]=None) -> dict[str,str]:
+
+def read_and_update_config(filename: str, configs: dict[str, str] = None) -> dict[str, str]:
     """ Parse target Config files """
-    parse_config_rgx = re.compile(f'^({var_ident})\s*=(.*)')
+    parse_config_rgx = re.compile(rf'^({var_ident})\s*=(.*)')
     configs = {} if configs is None else configs
 
     with open(filename) as f:
@@ -61,9 +64,10 @@ def read_and_update_config(filename:str, configs:dict[str,str]=None) -> dict[str
 
     return configs
 
-def update_config_variables(config:dict[str,str], variables:Iterable[str]) -> list[str]:
+
+def update_config_variables(config: dict[str, str], variables: Iterable[str]) -> list[str]:
     """Return unparsed variable"""
-    rgx_var = re.compile(f'^({var_ident})(\+?=)(.*)')
+    rgx_var = re.compile(rf'^({var_ident})(\+?=)(.*)')
     variable_errors = []
     for var in variables:
         m = rgx_var.match(var)
@@ -75,21 +79,25 @@ def update_config_variables(config:dict[str,str], variables:Iterable[str]) -> li
         config[k] = newvalue
     return variable_errors
 
-def print_configs(configs:dict[str,str]) -> None:
+
+def print_configs(configs: dict[str, str]) -> None:
     variables = []
-    for k,v in configs.items():
+    for k, v in configs.items():
         variables.append(f'{k} = {v}')
     print('\n'.join(variables))
 
-def readall(filename:str) -> str:
+
+def readall(filename: str) -> str:
     with open(filename) as f:
         return f.read()
 
-def writeall(filename:str, s:str) -> None:
+
+def writeall(filename: str, s: str) -> None:
     with open(filename, 'w+') as f:
         f.write(s)
 
-def get_changelog_entry(project_name:str, version:str, maintainer:str, urgency:str, utc:str) -> str:
+
+def get_changelog_entry(project_name: str, version: str, maintainer: str, urgency: str, utc: str) -> str:
     editor = os.environ.get('EDITOR') or 'nano'
 
     changelog = []
@@ -114,11 +122,13 @@ def get_changelog_entry(project_name:str, version:str, maintainer:str, urgency:s
     return (f'{project_name or "%PROJECT_NAME%"} ({version}%TARGET_NAME%) %PKG_DISTRIBUTION%; '
             f'urgency={urgency}\n\n{"".join(changelog)}\n\n -- {maintainer}  {now}\n\n')
 
-def update_changelog(changelog_path:str, changelog:str) -> None:
+
+def update_changelog(changelog_path: str, changelog: str) -> None:
     changelog += readall(changelog_path)
     writeall(changelog_path, changelog)
 
-def create_build_directory(package_template:str, output_build:str) -> None:
+
+def create_build_directory(package_template: str, output_build: str) -> None:
     rgx_tempfile = re.compile('^#.*#$|~$')
 
     try:
@@ -134,9 +144,12 @@ def create_build_directory(package_template:str, output_build:str) -> None:
         out = replace_dict_all(out, configs)
         writeall(f'{output_build}/{filename}', out)
 
-def less_version(lhs_version:str, rhs_version:str) -> bool:
-    rgx_split_version = re.compile('[^\d]*(\d+)(?:\.(\d+))?(?:[-.](\d+))?(?:[-.](\d+))?(?:[-.](\d+))?(.*)')
-    to_tuple = lambda m: (
+
+def less_version(lhs_version: str, rhs_version: str) -> bool:
+    rgx_split_version = re.compile(
+        r'[^\d]*(\d+)(?:\.(\d+))?(?:[-.](\d+))?(?:[-.](\d+))?(?:[-.](\d+))?(.*)')
+
+    def to_tuple(m): return (
         int(m.group(1)),
         int(m.group(2) or 0),
         int(m.group(3) or 0),
@@ -148,14 +161,17 @@ def less_version(lhs_version:str, rhs_version:str) -> bool:
     m2 = rgx_split_version.match(rhs_version)
     return to_tuple(m1) < to_tuple(m2)
 
-def shell_cmd(cmd:list[str]) -> str:
+
+def shell_cmd(cmd: list[str]) -> str:
     print('$', ' '.join(cmd))
-    return subprocess.check_output(cmd, env={'GIT_PAGER':''}, text=True)
+    return subprocess.check_output(cmd, env={'GIT_PAGER': ''}, text=True)
+
 
 def git_uncommited_changes() -> str:
     return shell_cmd(['git', 'diff', '--shortstat'])
 
-def git_tag_exists(tag:str) -> tuple[bool, str]:
+
+def git_tag_exists(tag: str) -> tuple[bool, str]:
     tag = tag+'\n'
 
     # local tag
@@ -170,17 +186,21 @@ def git_tag_exists(tag:str) -> tuple[bool, str]:
 
     return (False, '')
 
+
 def git_last_tag() -> str:
     return shell_cmd(['git', 'describe', '--tags']).partition('\n')[0]
 
-def regex_version_or_die(pattern:str) -> re.Pattern:
+
+def regex_version_or_die(pattern: str) -> re.Pattern:
     try:
         return re.compile(pattern)
     except re.error as e:
         tb = sys.exc_info()[2]
-        raise PackagerError(f'Invalid error on regex version: {pattern}').with_traceback(tb)
+        raise PackagerError(
+            f'Invalid error on regex version: {pattern}').with_traceback(tb)
 
-def read_version_or_die(pattern:str, file_version:str) -> tuple[str, str]:
+
+def read_version_or_die(pattern: str, file_version: str) -> tuple[str, str]:
     if not file_version:
         raise PackagerError('File version is empty')
         exit(errcode)
@@ -191,32 +211,40 @@ def read_version_or_die(pattern:str, file_version:str) -> tuple[str, str]:
     m = rgx_version.match(content)
 
     if m is None:
-        raise PackagerError(f'Version not found: file={file_version}  pattern={pattern}')
+        raise PackagerError(
+            f'Version not found: file={file_version}  pattern={pattern}')
 
     return m.group(1), m.span(1), content
 
-def argument_parser(description:str) -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description='Packager for proxies repositories')
+
+def argument_parser(description: str) -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description='Packager for proxies repositories')
 
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('-b', '--build', action='store_true', help='create a package directory')
+    group.add_argument('-b', '--build', action='store_true',
+                       help='create a package directory')
     group.add_argument('-g', '--get-version', action='store_true')
-    group.add_argument('-n', '--new-version', metavar='VERSION', help='update version and create a tag')
-    group.add_argument('--show-config', action='store_true', help='show configs')
+    group.add_argument('-n', '--new-version', metavar='VERSION',
+                       help='update version and create a tag')
+    group.add_argument('--show-config', action='store_true',
+                       help='show configs')
 
     parser.add_argument('--no-check-uncommited', action='store_true')
-    parser.add_argument('--check-uncommited', dest='no_check_uncommited', action='store_false')
+    parser.add_argument('--check-uncommited',
+                        dest='no_check_uncommited', action='store_false')
 
     group = parser.add_argument_group('Version options')
     group.add_argument('--file-version', metavar='PATH')
     group.add_argument('--pattern-version', metavar='REGEX',
-                       default='\s*(?:[a-zA-Z_][a-zA-Z0-9_]*)?VERSION\s*=\s*[\'"]([^\'"]*)[\'"]',
+                       default=r'\s*(?:[a-zA-Z_][a-zA-Z0-9_]*)?VERSION\s*=\s*[\'"]([^\'"]*)[\'"]',
                        help='pattern for version')
 
     group = parser.add_argument_group('Update version and tag')
     group.add_argument('--force-version', action='store_true')
     group.add_argument('--no-commit-and-tag', action='store_true')
-    group.add_argument('--commit-and-tag', dest='no_commit_and_tag', action='store_false')
+    group.add_argument('--commit-and-tag',
+                       dest='no_commit_and_tag', action='store_false')
     group.add_argument('--no-push', action='store_true')
     group.add_argument('--push', dest='no_push', action='store_false')
     group.add_argument('--commit-message', metavar='TEMPLATE', default='Version %s',
@@ -224,41 +252,48 @@ def argument_parser(description:str) -> argparse.ArgumentParser:
 
     group = parser.add_argument_group('Build package options')
     group.add_argument('--target', metavar='NAME', help='target file path')
-    group.add_argument('--output-build', metavar='DIRNAME', default='debian', help='build directory')
-    group.add_argument('--clean-build', action='store_true', help='remove existing build directory')
+    group.add_argument('--output-build', metavar='DIRNAME',
+                       default='debian', help='build directory')
+    group.add_argument('--clean-build', action='store_true',
+                       help='remove existing build directory')
     group.add_argument('--package-template', metavar='DIRNAME',
                        default='packaging/template/debian', help='package template directory')
-    group.add_argument('--build-package', action='store_true', help='run dpkg-buildpackage')
+    group.add_argument('--build-package', action='store_true',
+                       help='run dpkg-buildpackage')
     group.add_argument('--project-name', metavar='NAME')
     group.add_argument('--project-version', metavar='VERSION')
     group.add_argument('--update-changelog', action='store_true')
     group.add_argument('--urgency', default='low')
     group.add_argument('--utc', default='0200')
-    group.add_argument('--maintainer', default='Proxies Team <R&D-Project-Bastion-Proxies@wallix.com>')
+    group.add_argument('--maintainer',
+                       default='Proxies Team <R&D-Project-Bastion-Proxies@wallix.com>')
     group.add_argument('--distribution-name')
     group.add_argument('--distribution-version')
     group.add_argument('--distribution-id')
     group.add_argument('--package-distribution')
     group.add_argument('--no-check-version', action='store_true')
-    group.add_argument('--check-version', dest='no_check_version', action='store_false')
+    group.add_argument('--check-version',
+                       dest='no_check_version', action='store_false')
     group.add_argument('-s', '--variable', metavar='VARIABLE=VALUE', action='append', default=[],
                        help='support of VARIABLE=VALUE and VARIABLE+=VALUE')
 
     return parser
 
+
 class Hook:
-    def normalize_version(self, version:str) -> str:
+    def normalize_version(self, version: str) -> str:
         """normalized version from file"""
         return version
 
-    def sanitize_version(self, old_version:str, new_version:str) -> str:
+    def sanitize_version(self, old_version: str, new_version: str) -> str:
         """convert to a writable version"""
         return new_version
 
-    def post_updated_version(self, old_version:str, new_version:str) -> None:
+    def post_updated_version(self, old_version: str, new_version: str) -> None:
         pass
 
-def run_packager(args, hook:Hook=Hook()) -> None:
+
+def run_packager(args, hook: Hook = Hook()) -> None:
     if not args.show_config and not args.get_version and not args.no_check_uncommited:
         changes = git_uncommited_changes()
         if changes:
@@ -277,7 +312,8 @@ def run_packager(args, hook:Hook=Hook()) -> None:
         if not new_version:
             raise PackagerError(f'New version is empty')
 
-        version, pos, content = read_version_or_die(args.pattern_version, args.file_version)
+        version, pos, content = read_version_or_die(
+            args.pattern_version, args.file_version)
         version = hook.normalize_version(version)
 
         if not args.force_version and not less_version(version, new_version):
@@ -288,14 +324,16 @@ def run_packager(args, hook:Hook=Hook()) -> None:
 
         tag_exists, tag_cat = git_tag_exists(new_version)
         if tag_exists:
-            raise PackagerError(f'Tag {new_version} already exists ({tag_cat})')
+            raise PackagerError(
+                f'Tag {new_version} already exists ({tag_cat})')
 
         writeall(args.file_version,
                  f'{content[:pos[0]]}{new_version}{content[pos[1]:]}')
         hook.post_updated_version(version, new_version)
 
         if not args.no_commit_and_tag:
-            shell_cmd(['git', 'commit', '-am', args.commit_message % (new_version,)])
+            shell_cmd(['git', 'commit', '-am',
+                       args.commit_message % (new_version,)])
             shell_cmd(['git', 'tag', new_version])
             if not args.no_push:
                 shell_cmd(['git', 'push'])
@@ -354,7 +392,8 @@ def run_packager(args, hook:Hook=Hook()) -> None:
     if not project_version or not project_name:
         errors = []
         if not project_version:
-            errors.append('--project-version or -s PROJECT_VERSION=... is missing')
+            errors.append(
+                '--project-version or -s PROJECT_VERSION=... is missing')
         if not project_name:
             errors.append('--project-name or -s PROJECT_NAME=... is missing')
         raise PackagerError(', '.join(errors))
@@ -370,7 +409,7 @@ def run_packager(args, hook:Hook=Hook()) -> None:
     if args.clean_build:
         try:
             shutil.rmtree(args.output_build)
-        except:
+        except OSError:
             pass
 
     create_build_directory(args.package_template, args.output_build)
@@ -379,6 +418,7 @@ def run_packager(args, hook:Hook=Hook()) -> None:
         status = os.system('dpkg-buildpackage -b -tc -us -uc -r')
         if status:
             raise PackagerError('Build failed: dpkg-buildpackage error')
+
 
 if __name__ == '__main__':
     parser = argument_parser('Packager for proxies repositories (v2.0.0)')
