@@ -209,7 +209,10 @@ def git_tag_exists(tag: str) -> tuple[bool, str]:
 
 
 def git_last_tag() -> str:
-    return shell_cmd(['git', 'describe', '--tags']).partition('\n')[0]
+    # tag-N-HASH
+    tag = shell_cmd(['git', 'describe', '--tags'])
+    pos = re.search(r'-\d+-\w+$', tag)
+    return tag[:pos.start(0)]
 
 
 def regex_version_or_die(pattern: str) -> re.Pattern:
