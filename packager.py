@@ -145,11 +145,13 @@ def create_build_directory(package_template: str, output_build: str, configs: di
         writeall(f'{output_build}/{filename}', out)
 
 
-def less_version(lhs_version: str, rhs_version: str) -> bool:
-    rgx_split_version = re.compile(
+def get_version_extractor() -> re.Pattern:
+    return re.compile(
         r'[^\d]*(\d+)(?:\.(\d+))?(?:[-.](\d+))?(?:[-.](\d+))?(?:[-.](\d+))?(.*)')
 
-    def to_tuple(m: re.Match): return (
+
+def re_match_version_to_tuple(m: re.Match) -> tuple[int, int, int, int, int, str]:
+    return (
         int(m.group(1)),
         int(m.group(2) or 0),
         int(m.group(3) or 0),
@@ -157,9 +159,13 @@ def less_version(lhs_version: str, rhs_version: str) -> bool:
         int(m.group(5) or 0),
         m.group(6)
     )
-    m1 = rgx_split_version.match(lhs_version)
-    m2 = rgx_split_version.match(rhs_version)
-    return to_tuple(m1) < to_tuple(m2)
+
+
+def less_version(lhs_version: str, rhs_version: str) -> bool:
+    patt = get_version_extractor()
+    m1 = patt.match(lhs_version)
+    m2 = patt.match(rhs_version)
+    return re_match_version_to_tuple(m1) < re_match_version_to_tuple(m2)
 
 
 def check_version(old_version: str, new_version: str) -> None:
