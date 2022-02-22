@@ -162,6 +162,25 @@ def less_version(lhs_version: str, rhs_version: str) -> bool:
     return to_tuple(m1) < to_tuple(m2)
 
 
+def check_version(old_version: str, new_version: str) -> None:
+    if not less_version(old_version, new_version):
+        raise PackagerError(f'New version ({new_version}) is less than'
+                            f' old version ({old_version})')
+
+
+def check_pattern_version(old_version: str, new_version: str, pattern: str) -> None:
+    if pattern:
+        m = re.match(pattern, old_version)
+        if m is None:
+            raise PackagerError('Unable to retrieve the version number'
+                                f'from {old_version}')
+        if not new_version.startswith(m.group(0)):
+            raise PackagerError(f'The last tag number ({old_version}) of '
+                                f'the repository is not compatible with'
+                                f'the new tag number {new_version}. '
+                                f'Pattern is "{pattern}"')
+
+
 def shell_cmd(cmd: list[str]) -> str:
     print('$', ' '.join(cmd))
     return subprocess.check_output(cmd, env={'GIT_PAGER': ''}, text=True)
@@ -243,6 +262,8 @@ def argument_parser(description: str) -> argparse.ArgumentParser:
 
     group = parser.add_argument_group('Update version and tag')
     group.add_argument('--force-version', action='store_true')
+    group.add_argument('--start-pattern-version', default=r'^\d+\.\d+\.',
+                       help='new version and current version must be the same')
     group.add_argument('--no-commit-and-tag', action='store_true')
     group.add_argument('--commit-and-tag',
                        dest='no_commit_and_tag', action='store_false')
@@ -317,9 +338,10 @@ def run_packager(args, hook: Hook = Hook()) -> None:
             args.pattern_version, args.file_version)
         version = hook.normalize_version(version)
 
-        if not args.force_version and not less_version(version, new_version):
-            raise PackagerError(f'New version ({new_version}) is less than'
-                                f' old version ({version})')
+        if not args.force_version:
+            check_version(version, new_version)
+            check_pattern_version(version, new_version,
+                                  args.start_pattern_version)
 
         new_version = hook.sanitize_version(version, new_version)
 
