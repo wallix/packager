@@ -2,12 +2,12 @@
 # -*- coding: utf-8 -*-
 
 import unittest
-import packager
+from wallix_packager.packager import replace_dict_all, read_and_update_config, update_config_variables
 
 class TestPackager(unittest.TestCase):
     def test_replace_dict_all(self):
         self.assertEqual(
-            packager.replace_dict_all(
+            replace_dict_all(
                 'a %A% aa %AA% %B% a %A%%D% aa %C% %B%',
                 {
                     'A': 'AA',
@@ -19,7 +19,7 @@ class TestPackager(unittest.TestCase):
             'a AA aa plop xY a AA%D% aa A xY')
 
     def test_read_and_update_config(self):
-        config = packager.read_and_update_config(
+        config = read_and_update_config(
             'tests/data/config1', {'DIST_NAME':'debian', 'DIST_ID':'squeeze'})
         self.assertEqual(config, {
             'DIST_ID': 'squeeze',
@@ -33,20 +33,9 @@ class TestPackager(unittest.TestCase):
 
     def test_update_config_variables(self):
         config = {'V':'x'}
-        unparsed = packager.update_config_variables(config, ['XYZ', 'X-Y', 'X=', 'ABC=123', 'V+=y'])
+        unparsed = update_config_variables(config, ['XYZ', 'X-Y', 'X=', 'ABC=123', 'V+=y'])
         self.assertEqual(config, {'V': 'xy', 'X': '', 'ABC': '123'})
         self.assertEqual(unparsed, ['XYZ', 'X-Y'])
-
-    def test_less_version(self):
-        self.assertEqual(packager.less_version('1.0.0.0', '1.0.0.0'), False)
-        self.assertEqual(packager.less_version('0.0.9.0', '1.0.0.0'), True)
-        self.assertEqual(packager.less_version('1.0.0.0', '1.0.0.1'), True)
-        self.assertEqual(packager.less_version('1.0.0.1', '1.0.0.1'), False)
-        self.assertEqual(packager.less_version('1.0.0.1', '2.0.0.0'), True)
-        self.assertEqual(packager.less_version('1.0.0-1', '2.0.0-0'), True)
-        self.assertEqual(packager.less_version('2.0.0-1', '2.0.0-0'), False)
-        self.assertEqual(packager.less_version('2.a', '2.b'), True)
-        self.assertEqual(packager.less_version('2.b', '2.a'), False)
 
 
 if __name__ == '__main__':

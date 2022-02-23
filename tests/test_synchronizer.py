@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 
 import unittest
-import pulp
+from wallix_packager.synchronizer import read_gitconfig, explode_git_url
 
 class TestPulp(unittest.TestCase):
     def test_read_gitconfig(self):
-        d = pulp.read_gitconfig('''
+        d = read_gitconfig('''
 [core]
         repositoryformatversion = 0
         filemode = true
@@ -34,13 +34,13 @@ class TestPulp(unittest.TestCase):
         })
 
     def test_explode_git_url(self):
-        self.assertEqual(pulp.explode_git_url('user1@gitlab.com:git/program_options.git'),
+        self.assertEqual(explode_git_url('user1@gitlab.com:git/program_options.git'),
                          ('user1', 'gitlab.com', 'program_options.git'))
 
-        self.assertEqual(pulp.explode_git_url('user1@gitlab.com:git/program_options'),
+        self.assertEqual(explode_git_url('user1@gitlab.com:git/program_options'),
                          ('user1', 'gitlab.com', 'program_options'))
 
-        self.assertEqual(pulp.explode_git_url('user1@gitlab.com:/program_options'), None)
+        self.assertEqual(explode_git_url('user1@gitlab.com:/program_options'), None)
 
 
 if __name__ == '__main__':
