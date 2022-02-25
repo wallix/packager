@@ -9,10 +9,10 @@
 
 import re
 import subprocess
-from typing import Dict, Tuple, Iterable
+from typing import Dict, Tuple, Iterable, Optional
 
 
-def shell_cmd(cmd: Iterable[str], env: Dict[str,str] = {'GIT_PAGER': ''}) -> str:
+def shell_cmd(cmd: Iterable[str], env: Optional[Dict[str,str]] = None) -> str:
     print('$\x1b[34m', ' '.join(cmd), '\x1b[0m')
     return subprocess.check_output(cmd, env=env, text=True)
 
@@ -42,5 +42,14 @@ def git_tag_exists(tag: str) -> Tuple[bool, str]:
 def git_last_tag() -> str:
     # tag-N-HASH
     tag = shell_cmd(['git', 'describe', '--tags'])
-    pos = re.search(r'-\d+-\w+$', tag)
-    return tag[:pos.start(0)]
+    m = re.search('-\\d+-[0-9a-f]{10}\n?$', tag)
+    if m is None:
+        return tag
+    return tag[:m.start(0)]
+
+
+def git_current_branch() -> str:
+    # refs/heads/BRANCH
+    branch = shell_cmd(['git', 'symbolic-ref', 'HEAD'])
+    prefix = 'refs/heads/'
+    return branch[len(prefix):-1] if branch.startswith(prefix) else branch[:-1]

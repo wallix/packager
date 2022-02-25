@@ -165,7 +165,7 @@ def regex_version_or_die(pattern: str) -> re.Pattern:
             f'Invalid error on regex version: {pattern}').with_traceback(tb)
 
 
-def read_version_or_die(pattern: str, file_version: str) -> Tuple[str, str]:
+def read_version_or_die(pattern: str, file_version: str) -> Tuple[str, Tuple[int,int], str]:
     if not file_version:
         raise PackagerError('File version is empty')
 

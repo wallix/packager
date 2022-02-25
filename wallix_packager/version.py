@@ -10,7 +10,7 @@
 import re
 from typing import Tuple
 
-TupleVersion = Tuple[int, int, int, int, int, str]
+TypingVersion = Tuple[int, int, int, int, int, str]
 
 
 def get_version_extractor() -> re.Pattern:
@@ -18,7 +18,7 @@ def get_version_extractor() -> re.Pattern:
         r'[^\d]*(\d+)(?:\.(\d+))?(?:[-.](\d+))?(?:[-.](\d+))?(?:[-.](\d+))?(.*)')
 
 
-def re_match_version_to_tuple(m: re.Match) -> TupleVersion:
+def re_match_version_to_tuple(m: re.Match) -> TypingVersion:
     return (
         int(m.group(1)),
         int(m.group(2) or 0),
