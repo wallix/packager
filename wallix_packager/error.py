@@ -10,6 +10,7 @@
 import sys
 import traceback
 
+
 def print_error(exception: Exception, prefix: str = '', file=sys.stderr) -> None:
     s = str(exception)
     border = '=' * (len(s) + len(prefix) + 4)

@@ -12,7 +12,7 @@ import subprocess
 from typing import Dict, Tuple, Iterable, Optional
 
 
-def shell_cmd(cmd: Iterable[str], env: Optional[Dict[str,str]] = None) -> str:
+def shell_cmd(cmd: Iterable[str], env: Optional[Dict[str, str]] = None) -> str:
     print('$\x1b[34m', ' '.join(cmd), '\x1b[0m')
     return subprocess.check_output(cmd, env=env, text=True)
 
