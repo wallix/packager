@@ -15,7 +15,7 @@ import shutil
 import argparse
 import datetime
 import subprocess
-from typing import Dict, Tuple, Iterable
+from typing import Dict, Tuple, List, Iterable
 from .io import writeall, readall
 from .version import less_version
 from .shell import shell_cmd, git_uncommited_changes, git_tag_exists, git_last_tag
@@ -69,7 +69,7 @@ def read_and_update_config(filename: str, configs: Dict[str, str] = None) -> Dic
     return configs
 
 
-def update_config_variables(config: Dict[str, str], variables: Iterable[str]) -> list[str]:
+def update_config_variables(config: Dict[str, str], variables: Iterable[str]) -> List[str]:
     """Return unparsed variable"""
     rgx_var = re.compile(rf'^({var_ident})(\+?=)(.*)')
     variable_errors = []
