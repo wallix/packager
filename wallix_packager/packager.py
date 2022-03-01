@@ -51,8 +51,10 @@ def read_and_update_config(filename: str, configs: Dict[str, str] = None) -> Dic
                 directory = os.path.dirname(filename)
                 included_path = os.path.join(directory, line[8:].strip())
                 read_and_update_config(included_path, configs)
-            elif m := re.search(parse_config_rgx, line):
-                configs[m.group(1).strip()] = m.group(2).strip()
+            else:
+                m = re.search(parse_config_rgx, line)
+                if m is not None:
+                    configs[m.group(1).strip()] = m.group(2).strip()
 
     if 'PKG_DISTRIBUTION' not in configs:
         if configs['DIST_NAME'].lower() == 'ubuntu':
