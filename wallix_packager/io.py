@@ -7,11 +7,11 @@
 # Author(s): Jonathan Poelen
 ##
 
-def readall(filename: str) -> str:
-    with open(filename) as f:
+def readall(filename: str, encoding: str = 'utf-8') -> str:
+    with open(filename, encoding=encoding) as f:
         return f.read()
 
 
-def writeall(filename: str, s: str) -> None:
-    with open(filename, 'w+') as f:
+def writeall(filename: str, s: str, encoding: str = 'utf-8') -> None:
+    with open(filename, 'w+', encoding=encoding) as f:
         f.write(s)

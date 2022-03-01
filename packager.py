@@ -8,6 +8,7 @@
 # Module description: Create package and git tag
 ##
 
+import sys
 from wallix_packager.packager import run_packager, argument_parser
 
 
@@ -18,4 +19,4 @@ try:
 except Exception as e:
     from .wallix_packager.error import print_error
     print_error(e)
-    exit(1)
+    sys.exit(1)

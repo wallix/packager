@@ -8,6 +8,7 @@
 # Module description: Synchronize public submodule
 ##
 
+import sys
 from wallix_packager.synchronizer import run_synchronizer, argument_parser
 
 parser = argument_parser('Synchronize submodules')
@@ -19,4 +20,4 @@ try:
 except Exception as e:
     from .wallix_packager.error import print_error
     print_error(e, f'Setting {submodule_path} submodule failed: ')
-    exit(1)
+    sys.exit(1)

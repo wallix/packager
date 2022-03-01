@@ -8,13 +8,11 @@
 # Module description: Create package and git tag
 ##
 
-import sys
 import os
 import re
 import shutil
 import argparse
 import datetime
-import subprocess
 from typing import Dict, Tuple, List, Iterable
 from .io import writeall, readall
 from .version import less_version
@@ -40,12 +38,14 @@ def replace_dict_all(text: str, dico: Dict[str, str]) -> str:
     return ''.join(text_parts)
 
 
-def read_and_update_config(filename: str, configs: Dict[str, str] = None) -> Dict[str, str]:
+def read_and_update_config(filename: str,
+                           configs: Dict[str, str] = None,
+                           encoding: str = 'utf-8') -> Dict[str, str]:
     """ Parse target Config files """
     parse_config_rgx = re.compile(rf'^({var_ident})\s*=(.*)')
     configs = {} if configs is None else configs
 
-    with open(filename) as f:
+    with open(filename, encoding=encoding) as f:
         for line in f:
             if line.startswith('include '):
                 directory = os.path.dirname(filename)
@@ -91,7 +91,12 @@ def print_configs(configs: Dict[str, str]) -> None:
     print('\n'.join(variables))
 
 
-def get_changelog_entry(project_name: str, version: str, maintainer: str, urgency: str, utc: str) -> str:
+def get_changelog_entry(project_name: str,
+                        version: str,
+                        maintainer: str,
+                        urgency: str,
+                        utc: str,
+                        encoding: str = 'utf-8') -> str:
     editor = os.environ.get('EDITOR') or 'nano'
 
     changelog = []
@@ -101,7 +106,7 @@ def get_changelog_entry(project_name: str, version: str, maintainer: str, urgenc
     if os.system(cmd):
         raise PackagerError(f'Error in `{cmd}`')
 
-    with open(tmp_changelog) as f:
+    with open(tmp_changelog, encoding=encoding) as f:
         for line in f:
             if line and line != '\n':
                 changelog.append('  * ')
@@ -162,9 +167,7 @@ def regex_version_or_die(pattern: str) -> re.Pattern:
     try:
         return re.compile(pattern)
     except re.error as e:
-        tb = sys.exc_info()[2]
-        raise PackagerError(
-            f'Invalid error on regex version: {pattern}').with_traceback(tb)
+        raise PackagerError(f'Invalid error on regex version: {pattern}') from e
 
 
 def read_version_or_die(pattern: str, file_version: str) -> Tuple[str, Tuple[int, int], str]:
@@ -183,9 +186,8 @@ def read_version_or_die(pattern: str, file_version: str) -> Tuple[str, Tuple[int
     return m.group(1), m.span(1), content
 
 
-def argument_parser(description: str) -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description='Packager for proxies repositories')
+def argument_parser(description: str = 'Packager for proxies repositories') -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=description)
 
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-b', '--build', action='store_true',
@@ -278,7 +280,7 @@ def run_packager(args: argparse.ArgumentParser, hook: Hook = Hook()) -> None:
     # set version
     if new_version is not None:
         if not new_version:
-            raise PackagerError(f'New version is empty')
+            raise PackagerError('New version is empty')
 
         version, pos, content = read_version_or_die(
             args.pattern_version, args.file_version)

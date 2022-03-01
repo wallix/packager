@@ -77,10 +77,11 @@ def explode_git_url(url: str) -> Optional[Tuple[User, Addr, RemotePath]]:
     m = re_url_origin.match(url)
     if m:
         return m.group(1), m.group(2), m.group(3)
+    return None
 
 
-def argument_parser(description: str) -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description='Synchronize submodules')
+def argument_parser(description: str = 'Synchronize submodules') -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=description)
     parser.add_argument('submodule', nargs='+', help='last path is used')
     parser.add_argument('-s', '--sync-hook', nargs='?', metavar='CMD',
                         const='./custom_hooks/sync_repo.sh',
@@ -97,7 +98,7 @@ def argument_parser(description: str) -> argparse.ArgumentParser:
 
 def run_synchronizer(submodule_path: str, args: argparse.ArgumentParser) -> None:
     if args.sync_hook:
-        with open('.git/config') as f:
+        with open('.git/config', encoding='utf-8') as f:
             config = read_gitconfig(f)
 
         if submodule_path not in config:
