@@ -11,9 +11,16 @@ import re
 import subprocess
 from typing import Dict, Tuple, Iterable, Optional
 
+is_safe_word = re.compile('^[\w@./:,%@_=^]+$')
+
+def escape_shell_arg(arg: str) -> str:
+    if is_safe_word.match(arg) is None:
+        arg = arg.replace("'", "'\\''")
+        return f"'{arg}'"
+    return arg
 
 def shell_cmd(cmd: Iterable[str], env: Optional[Dict[str, str]] = None) -> str:
-    print('$\x1b[34m', ' '.join(cmd), '\x1b[0m')
+    print('$\x1b[34m', ' '.join(map(escape_shell_arg, cmd)), '\x1b[0m')
     return subprocess.check_output(cmd, env=env, text=True)
 
 
