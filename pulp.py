@@ -17,7 +17,7 @@ from wallix_packager.synchronizer import (run_synchronizer,
 remove_prefix = re.compile('^modules/')
 gitconfig = read_gitconfig()
 parser = argument_parser(gitconfig, 'Synchronize submodules')
-args = parser.parse_args()
+args = parser.parse_intermixed_args()
 submodule_path = args.submodule[-1]
 
 try:
