@@ -14,31 +14,34 @@ import re
 from typing import Dict, Tuple, Optional, Iterable
 from .shell import shell_cmd
 
+def chdir(path: str) -> None:
+    print(f'$ \x1b[34mcd {path}\x1b[0m')
+    os.chdir(path)
 
 def fetch_clone(local_path: str, remote_path: str, ssh_address: str, cmd: str) -> None:
     print(f"== Synchronize {local_path} clone repository ==")
-    shell_cmd(('ssh', ssh_address, f'cd {remote_path}; {cmd}'))
+    print(shell_cmd(('ssh', ssh_address, f'cd {remote_path}; {cmd}')))
 
 
 def set_commit(local_path: str, commit_hash: str) -> None:
     print(f"== Setting {local_path} repository to commit {commit_hash} ==")
-    os.chdir(local_path)
-    shell_cmd(('git', 'fetch'))
-    shell_cmd(('git', 'reset', '--hard', commit_hash))
+    chdir(local_path)
+    print(shell_cmd(('git', 'fetch', '--all')))
+    print(shell_cmd(('git', 'reset', '--hard', commit_hash)))
 
 
 def set_tag(local_path: str, tag: str) -> None:
     print(f"== Setting {local_path} repository to tag {tag} ==")
-    os.chdir(local_path)
-    shell_cmd(('git', 'fetch', '--all'))
-    shell_cmd(('git', 'reset', '--hard', f'tags/{tag}'))
+    chdir(local_path)
+    print(shell_cmd(('git', 'fetch', '--all', '--tags')))
+    print(shell_cmd(('git', 'reset', '--hard', f'tags/{tag}')))
 
 
 def set_branch(local_path: str, branch: str):
     print(f"== Setting {local_path} repository to branch {branch} ==")
-    os.chdir(local_path)
-    shell_cmd(('git', 'fetch'))
-    shell_cmd(('git', 'reset', '--hard', f'origin/{branch}'))
+    chdir(local_path)
+    print(shell_cmd(('git', 'fetch', '--all')))
+    print(shell_cmd(('git', 'reset', '--hard', f'origin/{branch}')))
 
 
 LocalPath = str
