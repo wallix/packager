@@ -218,7 +218,7 @@ def argument_parser(description: str = 'Packager for proxies repositories') -> a
     group.add_argument('--no-push', action='store_true')
     group.add_argument('--push', dest='no_push', action='store_false')
     group.add_argument('--commit-message', metavar='TEMPLATE', default='Version %s',
-                       help='commit message template, %s is replaced with new version')
+                       help='commit message template, %%s is replaced with new version')
 
     group = parser.add_argument_group('Build package options')
     group.add_argument('--target', metavar='NAME', help='target file path')
