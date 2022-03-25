@@ -9,14 +9,21 @@
 ##
 
 import sys
-from wallix_packager.synchronizer import run_synchronizer, argument_parser
+import re
+from wallix_packager.synchronizer import (run_synchronizer,
+                                          argument_parser,
+                                          read_gitconfig)
 
-parser = argument_parser('Synchronize submodules')
+remove_prefix = re.compile('^modules/')
+gitconfig = read_gitconfig()
+gitconfig = {remove_prefix.sub('', k): v for k,v in gitconfig.items()}
+
+parser = argument_parser(gitconfig, 'Synchronize submodules')
 args = parser.parse_args()
 submodule_path = args.submodule[-1]
 
 try:
-    run_synchronizer(submodule_path, args)
+    run_synchronizer(gitconfig, submodule_path, args)
 except Exception as e:
     from .wallix_packager.error import print_error
     print_error(e, f'Setting {submodule_path} submodule failed: ')

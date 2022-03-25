@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 
 import unittest
-from wallix_packager.synchronizer import read_gitconfig, explode_git_url
+from wallix_packager.synchronizer import parse_gitconfig, explode_git_url
 
 class TestPulp(unittest.TestCase):
-    def test_read_gitconfig(self):
-        d = read_gitconfig('''
+    def test_parse_gitconfig(self):
+        d = parse_gitconfig('''
 [core]
         repositoryformatversion = 0
         filemode = true

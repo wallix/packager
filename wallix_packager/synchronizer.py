@@ -50,7 +50,7 @@ re_submodule = re.compile(r'^\s*\[submodule "([^"]+)"\]')
 re_url = re.compile(r'^\s*url\s*=\s*([^#]+)')
 
 
-def read_gitconfig(lines: Iterable[str]) -> Dict[LocalPath, RemotePath]:
+def parse_gitconfig(lines: Iterable[str]) -> Dict[LocalPath, RemotePath]:
     d = {}
 
     local_path = None
@@ -70,6 +70,11 @@ def read_gitconfig(lines: Iterable[str]) -> Dict[LocalPath, RemotePath]:
     return d
 
 
+def read_gitconfig(filename: str = '.git/config') -> Dict[LocalPath, RemotePath]:
+    with open(filename, encoding='utf-8') as f:
+        return parse_gitconfig(f)
+
+
 re_url_origin = re.compile('^([^@]+)@([^:]+):git/(.*)')
 
 
@@ -80,9 +85,10 @@ def explode_git_url(url: str) -> Optional[Tuple[User, Addr, RemotePath]]:
     return None
 
 
-def argument_parser(description: str = 'Synchronize submodules') -> argparse.ArgumentParser:
+def argument_parser(gitconfig: Dict[LocalPath, RemotePath],
+                    description: str = 'Synchronize submodules') -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('submodule', nargs='+', help='last path is used')
+    parser.add_argument('submodule', nargs='+', help='last path is used', choices=gitconfig.keys())
     parser.add_argument('-s', '--sync-hook', nargs='?', metavar='CMD',
                         const='./custom_hooks/sync_repo.sh',
                         default='git fetch -p origin',
@@ -96,15 +102,12 @@ def argument_parser(description: str = 'Synchronize submodules') -> argparse.Arg
     return parser
 
 
-def run_synchronizer(submodule_path: str, args: argparse.ArgumentParser) -> None:
+def run_synchronizer(gitconfig: Dict[LocalPath, RemotePath], submodule_path: str, args: argparse.ArgumentParser) -> None:
     if args.sync_hook:
-        with open('.git/config', encoding='utf-8') as f:
-            config = read_gitconfig(f)
-
-        if submodule_path not in config:
+        if submodule_path not in gitconfig:
             raise Exception(f'Unknown config for {submodule_path}')
 
-        infos = explode_git_url(config[submodule_path])
+        infos = explode_git_url(gitconfig[submodule_path])
         if infos is None:
             raise Exception(f'Unknown config for {submodule_path}')
 
