@@ -11,7 +11,7 @@ import re
 import subprocess
 from typing import Dict, Tuple, Iterable, Optional
 
-is_safe_word = re.compile('^[\w@./:,%@_=^]+$')
+is_safe_word = re.compile('^[-\w@./:,%@_=^]+$')
 
 def escape_shell_arg(arg: str) -> str:
     if is_safe_word.match(arg) is None:
