@@ -49,7 +49,7 @@ def git_tag_exists(tag: str) -> Tuple[bool, str]:
 def git_last_tag() -> str:
     # tag-N-HASH
     tag = shell_cmd(['git', 'describe', '--tags'])
-    m = re.search('-\\d+-[0-9a-f]{10}\n?$', tag)
+    m = re.search('-\\d+-[0-9a-f]{8,10}\n?$', tag)
     if m is None:
         return tag
     return tag[:m.start(0)]
