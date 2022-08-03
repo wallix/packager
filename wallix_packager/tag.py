@@ -59,7 +59,7 @@ def current_tag(repo_name: str, branch: str, ignore_change_and_not_pull: bool) -
     return git_last_tag()
 
 
-def parse_version(repo_name: str, tag: str, is_unofficial: bool) -> TypingVersion:
+def parse_version(repo_name: str, tag: str) -> TypingVersion:
     patt = get_version_extractor()
     m = patt.match(tag)
 

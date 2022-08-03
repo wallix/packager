@@ -23,6 +23,10 @@ def shell_cmd(cmd: Iterable[str], env: Optional[Dict[str, str]] = None) -> str:
     print('$\x1b[34m', ' '.join(map(escape_shell_arg, cmd)), '\x1b[0m')
     return subprocess.check_output(cmd, env=env, text=True)
 
+def shell_run(cmd: Iterable[str], env: Optional[Dict[str, str]] = None, check: bool = True) -> str:
+    print('$\x1b[34m', ' '.join(map(escape_shell_arg, cmd)), '\x1b[0m')
+    return subprocess.run(cmd, env=env, check=True)
+
 
 def git_uncommited_changes() -> str:
     return shell_cmd(['git', 'diff', '--shortstat'])
