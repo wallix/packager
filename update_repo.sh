@@ -62,7 +62,7 @@ while : ; do
     -c|--no-checkout) checkout=0 ; pull=0 ; shift ;;
     -p|--no-pull) pull=0 ; shift ;;
     --) shift ; break ;;
-    * ) parse_extra_getopt "$1" ;;
+    *) parse_extra_getopt "$1" "$2" ; shift ${SHIFT:-1} ;;
   esac
 done
 
