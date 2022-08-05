@@ -98,4 +98,4 @@ def update_version(pattern: re.Pattern, filename: str, new_version: str):
     shell_cmd(['git', 'commit', '-am', f'Version {new_version}'])
     shell_cmd(['git', 'tag', new_version])
     shell_cmd(['git', 'push'])
-    shell_cmd(['git', 'push', '--tags'])
+    shell_cmd(['git', 'push', '--follow-tags'])
