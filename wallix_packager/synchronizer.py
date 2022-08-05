@@ -14,9 +14,11 @@ import re
 from typing import Dict, Tuple, Optional, Iterable
 from .shell import shell_cmd
 
+
 def chdir(path: str) -> None:
     print(f'$ \x1b[34mcd {path}\x1b[0m')
     os.chdir(path)
+
 
 def fetch_clone(local_path: str, remote_path: str, ssh_address: str, cmd: str) -> None:
     print(f"== Synchronize {local_path} clone repository ==")
