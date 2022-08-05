@@ -14,7 +14,7 @@ from .version import (get_version_extractor,
 from .io import (readall, writeall)
 
 
-def getch():
+def getch() -> str:
     # unix version
     import tty, termios
     fd = sys.stdin.fileno()
@@ -91,7 +91,7 @@ def issues_from(tag: str) -> List[str]:
     return sorted(set(re.findall(r'((?:\bWAB-|#)\d+)', msg)))
 
 
-def update_version(pattern: re.Pattern, filename: str, new_version: str):
+def update_version(pattern: re.Pattern, filename: str, new_version: str) -> None:
     contents = readall(filename)
     pos = pattern.search(contents).span(1)
     writeall(filename, f'{contents[:pos[0]]}{new_version}{contents[pos[1]:]}')
