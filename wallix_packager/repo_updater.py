@@ -2,7 +2,7 @@
 
 import argparse
 from typing import Callable, Optional
-from .shell import confirm, shell_cmd
+from .shell import confirm, shell_cmd, shell_run
 
 
 def argument_parser(project_name: str, default_branch: str, description: str = '') -> argparse.ArgumentParser:
@@ -22,24 +22,24 @@ def run_update_repo(update_repo: Callable[[], None],
     if not confirm(f'Use "{branch}" branch for "{project_name}" ?'):
         return False
 
-    shell_cmd(('git', 'fetch', '--tags', '--all', '-a'))
-    shell_cmd(('git', 'switch', branch))
+    shell_run(('git', 'fetch', '--tags', '--all', '-a'))
+    shell_run(('git', 'switch', branch))
 
     if pull:
-        shell_cmd(('git', 'pull', 'origin', branch, '--rebase'))
+        shell_run(('git', 'pull', 'origin', branch, '--rebase'))
 
     update_repo()
 
     print(f'echo "{project_name}": git status before git commit -a')
-    shell_cmd(('git', 'status', '-s'))
+    shell_run(('git', 'status', '-s'))
 
     if confirm('git diff ?'):
-        shell_cmd(('git', 'diff'))
+        shell_run(('git', 'diff'))
 
     if commit_msg:
-        shell_cmd(('git', 'commit' '-am', commit_msg))
+        shell_run(('git', 'commit', '-am', commit_msg))
 
         if confirm(f'git push origin "{branch}" on "{project_name}" ?'):
-            shell_cmd(('git', 'push', 'origin', branch))
+            shell_run(('git', 'push', 'origin', branch))
 
     return True
