@@ -263,7 +263,7 @@ class Hook:
         pass
 
 
-def run_packager(args: argparse.ArgumentParser, hook: Hook = Hook()) -> None:
+def run_packager(args: argparse.Namespace, hook: Hook = Hook()) -> None:
     if not args.show_config and not args.get_version and not args.no_check_uncommited:
         changes = git_uncommited_changes()
         if changes:

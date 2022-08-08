@@ -107,7 +107,7 @@ def argument_parser(gitconfig: Dict[LocalPath, RemotePath],
     return parser
 
 
-def run_synchronizer(gitconfig: Dict[LocalPath, RemotePath], submodule_path: str, args: argparse.ArgumentParser) -> None:
+def run_synchronizer(gitconfig: Dict[LocalPath, RemotePath], submodule_path: str, args: argparse.Namespace) -> None:
     if args.sync_hook:
         if submodule_path not in gitconfig:
             raise Exception(f'Unknown config for {submodule_path}')
