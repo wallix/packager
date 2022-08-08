@@ -1,8 +1,9 @@
-import sys
 import re
 from typing import List
 
-from .shell import (shell_cmd,
+from .shell import (confirm,
+                    errexit,
+                    shell_cmd,
                     git_last_tag,
                     git_current_branch,
                     git_uncommited_changes,
@@ -12,31 +13,6 @@ from .version import (get_version_extractor,
                       TypingVersion,
                       )
 from .io import (readall, writeall)
-
-
-def getch() -> str:
-    # unix version
-    import tty, termios
-    fd = sys.stdin.fileno()
-    old_settings = termios.tcgetattr(fd)
-    try:
-        tty.setraw(sys.stdin.fileno())
-        return sys.stdin.read(1)
-    finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-
-
-def confirm(msg: str) -> bool:
-    print(f'{msg} [y/n] ', end='')
-    sys.stdout.flush()
-    ch = getch()
-    print(ch)
-    return ch == 'y'
-
-
-def errexit(msg) -> None:
-    print(msg, file=sys.stderr)
-    exit(1)
 
 
 def current_tag(repo_name: str, branch: str, ignore_change_and_not_pull: bool) -> str:

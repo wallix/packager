@@ -8,6 +8,7 @@
 ##
 
 import re
+import sys
 import subprocess
 from typing import Dict, Tuple, Iterable, Optional
 
@@ -31,6 +32,31 @@ def shell_run(cmd: Iterable[str], env: Optional[Dict[str, str]] = None,
               check: bool = True) -> str:
     print('$\x1b[34m', ' '.join(map(escape_shell_arg, cmd)), '\x1b[0m')
     return subprocess.run(cmd, env=env, check=True)
+
+
+def errexit(msg) -> None:
+    print(msg, file=sys.stderr)
+    exit(1)
+
+
+def getch() -> str:
+    # unix version
+    import tty, termios
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    try:
+        tty.setraw(sys.stdin.fileno())
+        return sys.stdin.read(1)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
+
+def confirm(msg: str) -> bool:
+    print(f'{msg} [y/n] ', end='')
+    sys.stdout.flush()
+    ch = getch()
+    print(ch)
+    return ch == 'y'
 
 
 def git_uncommited_changes() -> str:
