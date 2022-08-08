@@ -1,54 +1,45 @@
 #!/usr/bin/env python3
 
 import argparse
-from typing import Optional, Callable, TypeVar, Sequence
+from typing import Callable, Optional
 from .shell import confirm, shell_cmd
 
 
-Ctx = TypeVar('Ctx')
+def argument_parser(project_name: str, default_branch: str, description: str = '') -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument('-n', '--no-commit', action='store_true')
+    parser.add_argument('-p', '--no-pull', action='store_true')
+    parser.add_argument('-b', '--branch', default=default_branch, help=f'{project_name} branch')
+    parser.add_argument('updated_repo_path', help=f'{project_name} path')
+    return parser
 
 
-class RepoUpdater:
-    def __init__(self, project_name: str, default_branch: str, description: str = '') -> None:
-        parser = argparse.ArgumentParser(description=description)
-        parser.add_argument('-n', '--no-commit', action='store_true')
-        parser.add_argument('-p', '--no-pull', action='store_true')
-        parser.add_argument('-b', '--branch', default=default_branch, help=f'{project_name} branch')
-        parser.add_argument('updated_repo_path', help=f'{project_name} path')
-        self.parser = parser
-        self.project_name = project_name
+def run_update_repo(update_repo: Callable[[], None],
+                    project_name: str,
+                    branch: str,
+                    pull: bool,
+                    commit_msg: Optional[str]) -> bool:
+    if not confirm(f'Use "{branch}" branch for "{project_name}" ?'):
+        return False
 
-    def argument_parser(self) -> argparse.ArgumentParser:
-        return self.parser
+    shell_cmd(('git', 'fetch', '--tags', '--all', '-a'))
+    shell_cmd(('git', 'switch', branch))
 
-    def run(self,
-            version: str,
-            update_repo: Callable[[str, argparse.Namespace, Ctx], None],
-            args: Optional[argparse.Namespace],
-            update_args: Ctx) -> None:
-        if args is None:
-            args = self.parser.parse_args()
+    if pull:
+        shell_cmd(('git', 'pull', 'origin', branch, '--rebase'))
 
-        if not confirm(f'Use "{args.branch}" branch for "{self.project_name}" ?'):
-            self.parser.print_help()
-            return
+    update_repo()
 
-        shell_cmd(('git', 'fetch', '--tags', '--all', '-a'))
-        shell_cmd(('git', 'switch', args.branch))
+    print(f'echo "{project_name}": git status before git commit -a')
+    shell_cmd(('git', 'status', '-s'))
 
-        if not args.no_pull:
-            shell_cmd(('git', 'pull', 'origin', args.branch, '--rebase'))
+    if confirm('git diff ?'):
+        shell_cmd(('git', 'diff'))
 
-        update_repo(version, args, update_args)
+    if commit_msg:
+        shell_cmd(('git', 'commit' '-am', commit_msg))
 
-        print(f'echo "{self.project_name}": git status before git commit -a')
-        shell_cmd(('git', 'status', '-s'))
+        if confirm(f'git push origin "{branch}" on "{project_name}" ?'):
+            shell_cmd(('git', 'push', 'origin', branch))
 
-        if confirm('git diff ?'):
-            shell_cmd(('git', 'diff'))
-
-        if not args.no_commit:
-            shell_cmd(('git', 'commit' '-am', f'{self.project_name} updated to {version}'))
-
-            if confirm(f'git push origin "{args.branch}" on "{self.project_name}" ?'):
-                shell_cmd(('git', 'push', 'origin', args.branch))
+    return True
