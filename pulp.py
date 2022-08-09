@@ -24,5 +24,5 @@ try:
     run_synchronizer(gitconfig, submodule_path, args)
 except Exception as e:
     from .wallix_packager.error import print_error
-    print_error(e, f'Setting {submodule_path} submodule failed: ')
+    print_error(f'Setting {submodule_path} submodule failed: {e}')
     sys.exit(1)

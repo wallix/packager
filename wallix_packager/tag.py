@@ -71,7 +71,11 @@ def update_version(pattern: re.Pattern, filename: str, new_version: str) -> None
     contents = readall(filename)
     pos = pattern.search(contents).span(1)
     writeall(filename, f'{contents[:pos[0]]}{new_version}{contents[pos[1]:]}')
-    shell_cmd(['git', 'commit', '-am', f'Version {new_version}'])
-    shell_cmd(['git', 'tag', new_version])
+    git_push_version(new_version)
+
+
+def git_push_version(version: str) -> None:
+    shell_cmd(['git', 'commit', '-am', f'Version {version}'])
+    shell_cmd(['git', 'tag', version])
     shell_cmd(['git', 'push'])
     shell_cmd(['git', 'push', '--follow-tags'])

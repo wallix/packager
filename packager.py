@@ -17,6 +17,6 @@ args = parser.parse_args()
 try:
     run_packager(args)
 except Exception as e:
-    from .wallix_packager.error import print_error
+    from wallix_packager.error import print_error
     print_error(e)
     sys.exit(1)

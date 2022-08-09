@@ -10,7 +10,7 @@
 import re
 import sys
 import subprocess
-from typing import Dict, Tuple, Iterable, Optional
+from typing import Dict, Tuple, Sequence, Optional
 
 
 is_safe_word = re.compile(r'^[-\w@./:,%@_=^]+$')
@@ -23,15 +23,21 @@ def escape_shell_arg(arg: str) -> str:
     return arg
 
 
-def shell_cmd(cmd: Iterable[str], env: Optional[Dict[str, str]] = None) -> str:
+def print_cmd(cmd: Sequence[str]) -> None:
     print('$\x1b[34m', ' '.join(map(escape_shell_arg, cmd)), '\x1b[0m')
+
+
+# TODO rename to output_shell
+def shell_cmd(cmd: Sequence[str], env: Optional[Dict[str, str]] = None) -> str:
+    print_cmd(cmd)
     return subprocess.check_output(cmd, env=env, text=True)
 
 
-def shell_run(cmd: Iterable[str], env: Optional[Dict[str, str]] = None,
+# TODO rename to run_shell
+def shell_run(cmd: Sequence[str], env: Optional[Dict[str, str]] = None,
               check: bool = True) -> subprocess.CompletedProcess:
-    print('$\x1b[34m', ' '.join(map(escape_shell_arg, cmd)), '\x1b[0m')
-    return subprocess.run(cmd, env=env, check=True)
+    print_cmd(cmd)
+    return subprocess.run(cmd, env=env, check=check)
 
 
 def errexit(msg) -> None:
