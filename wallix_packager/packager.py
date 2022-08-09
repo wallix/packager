@@ -16,7 +16,7 @@ import datetime
 from typing import Dict, Tuple, List, Iterable
 from .io import writeall, readall
 from .version import less_version
-from .shell import shell_cmd, git_uncommited_changes, git_tag_exists, git_last_tag
+from .shell import git_uncommited_changes, git_last_tag
 
 var_ident = '[A-Z][A-Z0-9_]*'
 
@@ -144,25 +144,6 @@ def create_build_directory(package_template: str, output_build: str, configs: Di
         writeall(f'{output_build}/{filename}', out)
 
 
-def check_version(old_version: str, new_version: str) -> None:
-    if not less_version(old_version, new_version):
-        raise PackagerError(f'New version ({new_version}) is less than'
-                            f' old version ({old_version})')
-
-
-def check_pattern_version(old_version: str, new_version: str, pattern: str) -> None:
-    if pattern:
-        m = re.match(pattern, old_version)
-        if m is None:
-            raise PackagerError('Unable to retrieve the version number'
-                                f'from {old_version}')
-        if not new_version.startswith(m.group(0)):
-            raise PackagerError(f'The last tag number ({old_version}) of '
-                                f'the repository is not compatible with'
-                                f'the new tag number {new_version}. '
-                                f'Pattern is "{pattern}"')
-
-
 def regex_version_or_die(pattern: str) -> re.Pattern:
     try:
         return re.compile(pattern)
@@ -193,8 +174,6 @@ def argument_parser(description: str = 'Packager for proxies repositories') -> a
     group.add_argument('-b', '--build', action='store_true',
                        help='create a package directory')
     group.add_argument('-g', '--get-version', action='store_true')
-    group.add_argument('-n', '--new-version', metavar='VERSION',
-                       help='update version and create a tag')
     group.add_argument('--show-config', action='store_true',
                        help='show configs')
 
@@ -207,18 +186,6 @@ def argument_parser(description: str = 'Packager for proxies repositories') -> a
     group.add_argument('--pattern-version', metavar='REGEX',
                        default=r'\s*(?:[a-zA-Z_][a-zA-Z0-9_]*)?VERSION\s*=\s*[\'"]([^\'"]*)[\'"]',
                        help='pattern for version')
-
-    group = parser.add_argument_group('Update version and tag')
-    group.add_argument('--force-version', action='store_true')
-    group.add_argument('--start-pattern-version', default=r'^\d+\.\d+\.',
-                       help='new version and current version must be the same')
-    group.add_argument('--no-commit-and-tag', action='store_true')
-    group.add_argument('--commit-and-tag',
-                       dest='no_commit_and_tag', action='store_false')
-    group.add_argument('--no-push', action='store_true')
-    group.add_argument('--push', dest='no_push', action='store_false')
-    group.add_argument('--commit-message', metavar='TEMPLATE', default='Version %s',
-                       help='commit message template, %%s is replaced with new version')
 
     group = parser.add_argument_group('Build package options')
     group.add_argument('--target', metavar='NAME', help='target file path')
@@ -255,13 +222,6 @@ class Hook:
         """normalized version from file"""
         return version
 
-    def sanitize_version(self, old_version: str, new_version: str) -> str:
-        """convert to a writable version"""
-        return new_version
-
-    def post_updated_version(self, old_version: str, new_version: str) -> None:
-        pass
-
 
 def run_packager(args: argparse.Namespace, hook: Hook = Hook()) -> None:
     if not args.show_config and not args.get_version and not args.no_check_uncommited:
@@ -275,40 +235,6 @@ def run_packager(args: argparse.Namespace, hook: Hook = Hook()) -> None:
     if args.get_version or new_version is not None:
         results = read_version_or_die(args.pattern_version, args.file_version)
         print(hook.normalize_version(results[0]))
-        return
-
-    # set version
-    if new_version is not None:
-        if not new_version:
-            raise PackagerError('New version is empty')
-
-        version, pos, content = read_version_or_die(
-            args.pattern_version, args.file_version)
-        version = hook.normalize_version(version)
-
-        if not args.force_version:
-            check_version(version, new_version)
-            check_pattern_version(version, new_version,
-                                  args.start_pattern_version)
-
-        new_version = hook.sanitize_version(version, new_version)
-
-        tag_exists, tag_cat = git_tag_exists(new_version)
-        if tag_exists:
-            raise PackagerError(
-                f'Tag {new_version} already exists ({tag_cat})')
-
-        writeall(args.file_version,
-                 f'{content[:pos[0]]}{new_version}{content[pos[1]:]}')
-        hook.post_updated_version(version, new_version)
-
-        if not args.no_commit_and_tag:
-            shell_cmd(['git', 'commit', '-am',
-                       args.commit_message % (new_version,)])
-            shell_cmd(['git', 'tag', new_version])
-            if not args.no_push:
-                shell_cmd(['git', 'push'])
-                shell_cmd(['git', 'push', '--tags'])
         return
 
     if not args.target:
