@@ -341,7 +341,7 @@ def add_arguments_for_create_tag_command(parser: argparse.ArgumentParser) -> Non
     parser.add_argument('-U', f'--no-{DEFAULT_UPDATED_REPO_NAME}-update', action='store_true',
                         dest='no_update_for_updated_repo')
 
-    group.add_argument('--update-changelog', action='store_true')
+    parser.add_argument('--update-changelog', action='store_true')
 
 
 class Hook:
