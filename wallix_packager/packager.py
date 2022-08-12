@@ -290,7 +290,6 @@ def add_arguments_for_build_command(parser: argparse.ArgumentParser) -> None:
                        help='package template directory')
     group.add_argument('-b', '--build-package', action='store_true',
                        help='run dpkg-buildpackage')
-    group.add_argument('--update-changelog', action='store_true')
 
     group = parser.add_argument_group('Git integration options')
     # py-3.9: action=argparse.BooleanOptionalAction
@@ -332,7 +331,7 @@ def add_arguments_for_sync_tag_command(parser: argparse.ArgumentParser,
                         required=require_updated_repo_path)
 
 
-def add_arguments_for_tag_command(parser: argparse.ArgumentParser) -> None:
+def add_arguments_for_create_tag_command(parser: argparse.ArgumentParser) -> None:
     add_arguments_for_sync_tag_command(parser, False)
 
     parser.add_argument('-b', '--branch', metavar='BRANCH',
@@ -341,6 +340,8 @@ def add_arguments_for_tag_command(parser: argparse.ArgumentParser) -> None:
     # py-3.9: action=argparse.BooleanOptionalAction
     parser.add_argument('-U', f'--no-{DEFAULT_UPDATED_REPO_NAME}-update', action='store_true',
                         dest='no_update_for_updated_repo')
+
+    group.add_argument('--update-changelog', action='store_true')
 
 
 class Hook:
@@ -449,31 +450,6 @@ def cmd_build(args: argparse.Namespace, hook: Hook) -> None:
                 f'- PROJECT_VERSION: {project_version}\n'
                 f'- tag: {last_tag}\n'
                 'Ignored with --no-check-version')
-    
-    # update changelog
-    if args.update_changelog:
-        project_name = config.get('PROJECT_NAME')
-
-        if not project_name:
-            raise PackagerError(
-                'Unknown PROJECT_NAME config.'
-                'Add variable in target-file or run with --project-name or -s PROJECT_NAME=...')
-
-        if not project_version:
-            raise PackagerError(
-                'Unknown PROJECT_VERSION config.'
-                'Add variable in target-file or run with --project-version or -s PROJECT_VERSION=...')
-
-        changelog = get_changelog_entry(project_name,
-                                        project_version,
-                                        config['MAINTAINER'],
-                                        config['URGENCY'],
-                                        config['UTC'])
-        for dirname in args.package_template_dir:
-            try:
-                update_changelog(f'{dirname}/changelog', changelog)
-            except FileNotFoundError:
-                pass
 
     # remove old build directory
     if args.clean_build:
@@ -525,6 +501,32 @@ def cmd_create_tag(args: argparse.Namespace, hook: Hook) -> None:
     if new_version is None:
         new_version = extracted_version.version
         new_version = f'{version[0]}.{version[1]}.{version[2] + 1}'
+
+    # update changelog
+    if args.update_changelog:
+        raise PackagerError('--update-changelog is unimplemented')
+    #     project_name = config.get('PROJECT_NAME')
+    #
+    #     if not project_name:
+    #         raise PackagerError(
+    #             'Unknown PROJECT_NAME config.'
+    #             'Add variable in target-file or run with --project-name or -s PROJECT_NAME=...')
+    #
+    #     if not project_version:
+    #         raise PackagerError(
+    #             'Unknown PROJECT_VERSION config.'
+    #             'Add variable in target-file or run with --project-version or -s PROJECT_VERSION=...')
+    #
+    #     changelog = get_changelog_entry(project_name,
+    #                                     project_version,
+    #                                     config['MAINTAINER'],
+    #                                     config['URGENCY'],
+    #                                     config['UTC'])
+    #     for dirname in args.package_template_dir:
+    #         try:
+    #             update_changelog(f'{dirname}/changelog', changelog)
+    #         except FileNotFoundError:
+    #             pass
 
     pos = extracted_version.position
     writeall(args.version_file.name,
@@ -580,7 +582,7 @@ def add_parser_cmd_create_tag(subparsers,
                               ) -> argparse.ArgumentParser:
     subparser = subparsers.add_parser('create-tag', aliases=['t'],
                                       help='Create a new tag')
-    add_arguments_for_tag_command(subparser)
+    add_arguments_for_create_tag_command(subparser)
     subparser.set_defaults(cmd_func=cmd)
     return subparser
 
