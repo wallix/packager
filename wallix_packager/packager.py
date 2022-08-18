@@ -181,6 +181,33 @@ def update_changelog(changelog_path: str, changelog: str) -> None:
     writeall(changelog_path, changelog)
 
 
+def prepare_build_files(
+        filename: str,
+        extra_config: Dict[str, Dict[str, str]],
+        config: Dict[str, str]
+) -> List[Tuple[str, Dict[str, str]]]:
+    dest_filenames_config = [(filename, config)]
+    if not extra_config:
+        return dest_filenames_config
+
+    project_name = config['PROJECT_NAME']
+    if filename.endswith(".service"):
+        dest_filenames_config = [
+            ("%s-%s.%s" % (prefix,
+                           project_name,
+                           filename),
+             extra_config[prefix])
+            for prefix in extra_config
+        ]
+    elif filename.startswith(f"{project_name}."):
+        dest_filenames_config = [
+            ("%s-%s" % (prefix, filename),
+             extra_config[prefix])
+            for prefix in extra_config
+        ]
+    return dest_filenames_config
+
+
 def create_build_directory(package_template_dir: str,
                            output_build: str,
                            config: Dict[str, str]) -> None:
@@ -193,10 +220,21 @@ def create_build_directory(package_template_dir: str,
     filenames = filter(lambda fname: rgx_tempfile.match(fname) is None,
                        os.listdir(package_template_dir))
 
-    for filename in filenames:
+    from .pybuild import pybuild_parameters
+    extra_config = pybuild_parameters(config)
+    file_dest_configs = (
+        (filename, dest_filename, dest_config)
+        for filename in filenames
+        for dest_filename, dest_config in prepare_build_files(
+            filename,
+            extra_config,
+            config
+        )
+    )
+    for filename, dest_filename, dest_config in file_dest_configs:
         out = readall(f'{package_template_dir}/{filename}')
-        out = replace_dict_all(out, config)
-        writeall(f'{output_build}/{filename}', out)
+        out = replace_dict_all(out, dest_config)
+        writeall(f'{output_build}/{dest_filename}', out)
 
 
 def regex_version_or_die(pattern: str) -> re.Pattern:
