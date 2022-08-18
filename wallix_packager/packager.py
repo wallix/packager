@@ -237,6 +237,13 @@ def create_build_directory(package_template_dir: str,
         writeall(f'{output_build}/{dest_filename}', out)
 
 
+def remove_directory(directory: str) -> None:
+    try:
+        shutil.rmtree(directory)
+    except OSError:
+        pass
+
+
 def regex_version_or_die(pattern: str) -> re.Pattern:
     try:
         return re.compile(pattern)
@@ -321,8 +328,8 @@ def add_arguments_for_build_command(parser: argparse.ArgumentParser) -> None:
     group = parser.add_argument_group('Output options')
     group.add_argument('-o', '--output-build', metavar='DIRNAME',
                        default='debian', help='build directory')
-    group.add_argument('--clean-build', action='store_true',
-                       help='remove existing build directory')
+    group.add_argument('--no-clean', action='store_true',
+                       help='remove build directory after build')
     group.add_argument('-d', '--package-template-dir', metavar='DIRNAMES',
                        nargs='+', default=['packaging/template/debian'],
                        help='package template directory')
@@ -490,11 +497,7 @@ def cmd_build(args: argparse.Namespace, hook: Hook) -> None:
                 'Ignored with --no-check-version')
 
     # remove old build directory
-    if args.clean_build:
-        try:
-            shutil.rmtree(args.output_build)
-        except OSError:
-            pass
+    remove_directory(args.output_build)
 
     # create buid directory
     for dirname in args.package_template_dir:
@@ -503,6 +506,9 @@ def cmd_build(args: argparse.Namespace, hook: Hook) -> None:
     # buid package
     if args.build_package:
         shell_run(['dpkg-buildpackage', '-b', '-tc', '-us', '-uc', '-r'])
+
+    if not args.no_clean:
+        remove_directory(args.output_build)
 
 
 def _cmd_sync_tag(version: str, args: argparse.Namespace, hook: Hook) -> None:
