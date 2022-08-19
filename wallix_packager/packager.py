@@ -335,6 +335,8 @@ def add_arguments_for_build_command(parser: argparse.ArgumentParser) -> None:
                        help='package template directory')
     group.add_argument('-b', '--build-package', action='store_true',
                        help='run dpkg-buildpackage')
+    group.add_argument('--use-pybuild', action='store_true',
+                       help='This option is deprecated')
 
     group = parser.add_argument_group('Git integration options')
     # py-3.9: action=argparse.BooleanOptionalAction
