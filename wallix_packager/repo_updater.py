@@ -39,7 +39,7 @@ def run_update_repo(update_repo: Callable[[], None],
     if commit_msg:
         shell_run(('git', 'commit', '-am', commit_msg))
 
-        if confirm(f'git push origin "{branch}" on "{project_name}" ?'):
+        if confirm(f'git push origin "{branch}" on "{project_name}" repository ?'):
             shell_run(('git', 'push', 'origin', branch))
 
     return True
