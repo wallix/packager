@@ -63,7 +63,7 @@ def compute_suffix(repo_name: str, unofficial: str, current_suffix: str) -> str:
 
 
 def issues_from(tag: str) -> List[str]:
-    msg = shell_cmd(['git', 'log', '--pretty=tformat:%s', '--', f'{tag}..'])
+    msg = shell_cmd(['git', 'log', '--pretty=tformat:%s', f'{tag}..'])
     return sorted(set(re.findall(r'((?:\bWAB-|#)\d+)', msg)))
 
 
