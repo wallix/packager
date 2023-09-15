@@ -79,3 +79,5 @@ def git_push_version(version: str) -> None:
     shell_cmd(['git', 'tag', version])
     shell_cmd(['git', 'push'])
     shell_cmd(['git', 'push', '--follow-tags'])
+    # the previous command may not push any tags...
+    shell_cmd(['git', 'push', 'origin', f'refs/tags/{version}'])
