@@ -92,8 +92,8 @@ def git_last_tag() -> str:
     tag = shell_cmd(['git', 'describe', '--tags'])
     m = re.search('-\\d+-g[0-9a-f]{8,10}\n?$', tag)
     if m is None:
-        return tag
-    return tag[:m.start(0)].strip()
+        return tag.strip()
+    return tag[:m.start(0)]
 
 
 def git_current_branch() -> str:
