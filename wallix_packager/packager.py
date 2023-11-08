@@ -50,25 +50,35 @@ class DistributionInfos(NamedTuple):
     distribution_id: str
     distribution_name: str
     distribution_version: str
+    distribution_codename: str
 
 
 def distribution_infos(load_infos: bool,
                        distribution_id: Optional[str],
                        distribution_name: Optional[str],
-                       distribution_version: Optional[str]) -> DistributionInfos:
+                       distribution_version: Optional[str],
+                       distribution_codename: Optional[str]) -> DistributionInfos:
     if load_infos:
-        import distro
+        try:
+            import distro
+        except ModuleNotFoundError:
+            from .distroinfo import DistroInfo
+            distro = DistroInfo()
+
         if distribution_id is None:
             distribution_id = distro.id()
         if distribution_name is None:
             distribution_name = distro.name()
         if distribution_version is None:
             distribution_version = distro.version()
+        if distribution_codename is None:
+            distribution_codename = distro.codename()
 
     return DistributionInfos(
         distribution_id=distribution_id or '',
         distribution_name=distribution_name or '',
-        distribution_version=distribution_version or ''
+        distribution_version=distribution_version or '',
+        distribution_codename=distribution_codename or '',
     )
 
 
@@ -311,6 +321,7 @@ def add_arguments_for_show_config_command(parser: argparse.ArgumentParser) -> No
     parser.add_argument('--distribution-id')
     parser.add_argument('--distribution-name')
     parser.add_argument('--distribution-version')
+    parser.add_argument('--distribution-codename')
     # py-3.9: action=argparse.BooleanOptionalAction
     parser.add_argument('--load-distribution-infos', action='store_true')
 
@@ -430,7 +441,8 @@ def make_config(args: argparse.Namespace) -> Dict[str, str]:
     dist_infos = distribution_infos(load_infos=args.load_distribution_infos,
                                     distribution_id=args.distribution_id,
                                     distribution_name=args.distribution_name,
-                                    distribution_version=args.distribution_version)
+                                    distribution_version=args.distribution_version,
+                                    distribution_codename=args.distribution_codename)
 
     config = dict(filter(
         lambda t: t[1] is not None,
@@ -438,6 +450,7 @@ def make_config(args: argparse.Namespace) -> Dict[str, str]:
             ('DIST_ID', dist_infos.distribution_id),
             ('DIST_NAME', dist_infos.distribution_name),
             ('DIST_VERSION', dist_infos.distribution_version),
+            ('DIST_CODENAME', dist_infos.distribution_codename),
             ('PKG_DISTRIBUTION', args.package_distribution),
             ('PROJECT_VERSION', args.project_version),
             ('PROJECT_NAME', args.project_name),
